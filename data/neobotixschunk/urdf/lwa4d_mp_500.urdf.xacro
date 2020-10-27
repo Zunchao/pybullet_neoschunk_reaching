@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="lwa4d_mp_500">
+    
+    <xacro:include filename="$(find neo_simulation)/robots/mp_500/mp_500.urdf.xacro" />
+    
+    <xacro:include filename="$(find schunk_description)/urdf/lwa4d/lwa4d.urdf.xacro"/>
+    <xacro:schunk_lwa4d_custom parent="base_link" name="arm" has_podest="1" invert_j1="true" invert_j2="true" invert_j3="true" invert_j4="true" invert_j5="true" invert_j6="true" invert_j7="true">
+        <origin rpy="0 0 0" xyz="-0.38 0 0.36"/>
+    </xacro:schunk_lwa4d_custom>
+    
+    <xacro:include filename="$(find schunk_description)/urdf/pg70/pg70.urdf.xacro"/>
+    <xacro:schunk_pg70 parent="arm_ee_link" name="gripper" has_podest="1">    
+        <origin rpy="0 0 0" xyz="0 0 0.055"/>
+    </xacro:schunk_pg70>
+</robot>
