@@ -464,7 +464,7 @@ class MM2DRobotCGymEnv(gym.Env):
 if __name__ == '__main__':
     # np.random.seed(11)
     env = MM2DRobotCGymEnv(maxstep=2e2, space=0.5, ifobs=True)
-    rec = VideoRecorder(env, path='/home/zheng/fromremote/video/ab.mp4')
+    rec = VideoRecorder(env, path=currentdir+'/demo.mp4')
     #mon = Monitor(env, '/home/zheng/fromremote/video/video',video_callable=lambda episode_id: True,force = True)
     #env.set_fps(30)
     for ep in range(500):
