@@ -39,9 +39,7 @@ class NeobotixSchunkGoal:
         self.goal_start = p_goal_start
         self.goal_circle_r = 0
         self.pb = pb
-        self.URDF_GOAL = os.path.join(
-            self.urdf_root, "pybullet_neoschunk_reaching/data/spheregoal.urdf"
-        )  # unused
+        # self.URDF_GOAL = os.path.join(self.urdf_root, "pybullet_neoschunk_reaching/data/spheregoal.urdf")  # unused
         # self.goal_uid = self.pb.loadURDF(self.URDF_GOAL, basePosition=self.goal_position)
         goal_id = self.pb.createVisualShape(
             shapeType=self.pb.GEOM_SPHERE, radius=GOAL_RADIUS, rgbaColor=[1, 0, 0, 0.5]

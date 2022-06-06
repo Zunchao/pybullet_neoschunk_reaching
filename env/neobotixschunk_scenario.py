@@ -3,8 +3,7 @@ env of opening-door scenario
 developed by Z. Zheng, @KIT-IPR
 """
 
-import pybullet as p
-import numpy as np
+import pybullet as pb
 
 OBS_VEL_LIMITS = [1.5, 1.5, 0]
 scenario_RADIUS = 0.1
@@ -13,9 +12,10 @@ scenario_HEIGHT = 2
 
 class NeobotixSchunkScenario:
     def __init__(self,
-                 urdf_root_path=None):
+                 urdf_root_path=None
+                 ):
         self.urdf_root = urdf_root_path
-        self._pb = p
+        self._pb = pb
         #self.URDF_scenario = os.path.join(self.urdf_root, "pybullet_neoschunk_reaching/data/cylinder_verticle.urdf")  # unused
         scenario_id_wall_o = self._pb.createCollisionShape(shapeType=self._pb.GEOM_BOX, halfExtents=[2, 0.05, 1])
         scenario_id_wall_v = self._pb.createVisualShape(shapeType=self._pb.GEOM_BOX, halfExtents=[2, 0.05, 1], rgbaColor=[0.1, 0.2, 0.3, 0.8])
@@ -30,8 +30,6 @@ class NeobotixSchunkScenario:
         scenario_id_wall_o3 = self._pb.createCollisionShape(shapeType=self._pb.GEOM_BOX, halfExtents=[2, 0.05, 0.3])
         scenario_id_wall_v3 = self._pb.createVisualShape(shapeType=self._pb.GEOM_BOX, halfExtents=[2, 0.05, 0.3], rgbaColor=[0.1, 0.2, 0.3, 0.8])
         self.scenario_uid7 = self._pb.createMultiBody(baseMass=10000, baseCollisionShapeIndex=scenario_id_wall_o3, baseVisualShapeIndex = scenario_id_wall_v3, basePosition=[0, 1, 1.7])
-
-
         #self.scenario_uid = self._pb.loadURDF(self.URDF_scenario, self.scenario_position, useFixedBase=True)
         #self.resetScenario()
 
