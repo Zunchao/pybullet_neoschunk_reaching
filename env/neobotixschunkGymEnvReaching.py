@@ -161,12 +161,12 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             self._pb.connect(self._pb.DIRECT)
 
         self.seed_number = self.seed()
-        self.set_data_csv_path()
+        self.__set_data_csv_path()
         if self.if_obstacle_moving:
             self.if_obstacle = True
         self.reset()
 
-        self.observation_dim = len(self.getExtendedObservation())
+        self.observation_dim = len(self.__get_observation())
         observation_high = np.array([largeValObservation] * self.observation_dim)
         action_boundary = 1
         if self.is_discrete:
@@ -180,7 +180,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         # self.calculateField = fieldDirection.FieldDirection()
         # help(neobotixschunk)
 
-    def set_data_csv_path(self):
+    def __set_data_csv_path(self):
         #self.DATA_SUCCESS_RATE = os.path.join(self.urdf_root,'pybullet_neoschunk_reaching/results/success_rate_update_noobs_'+str(self.seed_number[0])+'.csv')
         t_date = datetime.datetime.now()
         # print(t_date) 2020-10-08 16:18:21.814188
@@ -204,7 +204,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.DATA_ACTION = os.path.join(self.result_dir, 'action'+path_csv)
         self.DATA_STEPS = os.path.join(self.result_dir, 'steps'+path_csv)
 
-    def reset_params(self):
+    def __reset_params(self):
         self.r_penalty_collision = 0
         self.r_termination = 0
         self.terminated = 0
@@ -222,7 +222,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         reset env
         :return:
         """
-        self.reset_params()
+        self.__reset_params()
         self._pb.resetSimulation()
         self._pb.setPhysicsEngineParameter(numSolverIterations=200, enableFileCaching=0)
         self._pb.setPhysicsEngineParameter(solverResidualThreshold=1e-30)
@@ -259,12 +259,12 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         while True:
             flag1 = self.robot.check_collision_self() #or (np.linalg.norm(self.goal_position-[-0.38, 0.0, 0.76])>0.6)  # distance between goal and 2nd link
             if self.if_obstacle:
-                self.check_collision_obs()
+                self.__check_collision_obstacle()
                 flag2 = (self.dis_collision < 0.1)
                 flag3 = (np.linalg.norm(self.goal.goal_position[0:2] - self.obstacle.obstacle_position[0:2]) < 0.1)
                 flag1 = (flag1 or flag2 or flag3)
             if self.if_scenario:
-                flag4 = self.check_collision_wall()
+                flag4 = self.__check_collision_wall()
                 flag1 = (flag1 or flag4)
             if flag1:
                 #self.goal.resetGoal()
@@ -275,7 +275,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             else:
                 break
         self._pb.stepSimulation()
-        self.observation = self.getExtendedObservation()
+        self.observation = self.__get_observation()
         #self.goal.goal_position = self.ee_position
         #self.goal.resetGoal()
         self.former_ee_pos = self.ee_position
@@ -323,7 +323,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
 
         return self.observation
 
-    def calculate_point2line(self, point, line_endpoint1, line_endpoint2):
+    def __calculate_point2line(self, point, line_endpoint1, line_endpoint2):
         """
         calculate distance from current ee position to the straight line path between ee to goal at initial state
         :return: distance to the line
@@ -345,7 +345,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def getExtendedObservation(self):
+    def __get_observation(self):
         """
         get observation
         :return:
@@ -504,9 +504,9 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                 scaled_action[3] = input_action[6] * 0.3
                 scaled_action[4] = input_action[7] * 0.3
                 scaled_action[5] = input_action[8] * 0.4
-        return self.step_shaped(scaled_action)
+        return self.__step_shaped(scaled_action)
 
-    def step_shaped(self, action_scaled):
+    def __step_shaped(self, action_scaled):
         """
         step scaled actions
         :param action_scaled:
@@ -521,7 +521,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                 self.obstacle.setObstacleState()
             self.robot.applyAction(action_scaled)
             self._pb.stepSimulation()
-            done = self._termination()
+            done = self.__termination()
             if done:
                 self.episode_counter += 1
                 self.update_step_counter += 1
@@ -547,10 +547,10 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         if nobs == 0:
             nobs += 1e-16
         #self.observation = self.observation / nobs
-        reward = self._reward()
+        reward = self.__reward()
         return self.observation, reward, done, {}
 
-    def check_collision_wall(self):
+    def __check_collision_wall(self):
         if_wall_collide = 0
         if self.if_scenario:
             closest_points1 = self._pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid1, COLLISION_THRESHOLD/25)
@@ -566,7 +566,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             return True
         return False
 
-    def check_collision_obs(self):
+    def __check_collision_obstacle(self):
         """
         check collisions with obstacle
         :return:
@@ -588,8 +588,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             return True
         return False
 
-    def _termination(self):
-        self.observation = self.getExtendedObservation()
+    def __termination(self):
+        self.observation = self.__get_observation()
         if self.if_obstacle:
             self.r_func = reachingRewards.ReachingReward(with_priority=self.with_prioritized_reward, goal=self.goal.goal_position, armpos=self.ee_position, basepos=self.base_position, opos=self.obstacle.obstacle_position)
         '''
@@ -599,13 +599,13 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             self.r_termination = -100
             return True
         '''
-        if self.check_collision_wall():
+        if self.__check_collision_wall():
             self.r_termination = -100
             self.terminated = 5
             print('ACHTUNG : collision with walls!')
             return True
 
-        if self.check_collision_obs():
+        if self.__check_collision_obstacle():
             # force, d_force = self.calculateField.compute_sum_force()
             self.observation[-3:] = self.collision_relative_position#[0:2]
             if self.dis_collision > COLLISION_THRESHOLD:
@@ -655,11 +655,11 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
 
         return False
 
-    def _reward(self):
+    def __reward(self):
         reward = 0
         #rd = self.heu_reward_function.fun_gaussian(self.observation[0:2])
         #r = self.r_func.reward_field3d()
-        #dline = self.calculate_point2line(self.ee_position, self.init_ee, self.init_goal)
+        #dline = self.__calculate_point2line(self.ee_position, self.init_ee, self.init_goal)
         delta_dis = self.dis_ee - self.dis_vor
         self.dis_vor = self.dis_ee
 
