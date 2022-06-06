@@ -1,9 +1,8 @@
 """
-env of cylinder scenario, static and randomly move
+env of opening-door scenario
 developed by Z. Zheng, @KIT-IPR
 """
 
-import os
 import pybullet as p
 import numpy as np
 
