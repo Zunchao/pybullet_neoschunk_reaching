@@ -345,7 +345,7 @@
   </link>
   <!-- joint between arm_4_link and arm_5_link -->
   <joint name="arm_5_joint" type="revolute">
-    <safety_controller k_position="100.0" k_velocity="40.0"/>
+    <safety_controller k_position="10.0" k_velocity="4.0"/>
     <origin rpy="1.5707963267948966 0 1.5707963267948966" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
     <parent link="arm_4_link"/>

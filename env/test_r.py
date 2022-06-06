@@ -24,7 +24,7 @@ r_scale = 1
 
 
 plt.figure(1)
-plt.hold()
+#plt.hold()
 for i in range(N):
     returns = 0
     returns_no_end = 0

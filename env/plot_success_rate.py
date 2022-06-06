@@ -97,9 +97,9 @@ if __name__ == '__main__':
     plt.show()
     '''
     # plt.savefig('/home/zheng/fromremote/results/diff_r.png')
-    data1 = pd.read_csv('/home/zheng/resultslog/results/success_rate_202010091003_free.csv', delimiter=',',
+    data1 = pd.read_csv('/home/zzc/PycharmProjects/pybullet_neoschunk_reaching/results/success_rate_20210914000342_free.csv', delimiter=',',
                         names=['Episode', 'SuccessTotal', 'Success Rate', 'CountUpdate', 'SuccessUpdate', 'SuccessRateUpdate'])
-    data2 = pd.read_csv('/home/zheng/resultslog/results/success_rate_202010131045_prio.csv', delimiter=',',
+    data2 = pd.read_csv('/home/zzc/PycharmProjects/pybullet_neoschunk_reaching/results/success_rate_20210914000413_freec2.csv', delimiter=',',
                         names=['Episode', 'SuccessTotal', 'Success Rate', 'CountUpdate', 'SuccessUpdate', 'SuccessRateUpdate'])
     '''
     data3 = pd.read_csv('/home/zheng/resultsss/results/success_rate_roha_steps0915rohano.csv', delimiter=',',
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     #plotlegend = ['moving obstacle env', 'moving obstacle env with transfer learning']
     ax.legend(labels=plotlegend, loc='lower right', numpoints=1, fontsize=50)
     ax.tick_params(labelsize=50)
-    ax.set_xlim(xmin=0, xmax=30000)
+    #ax.set_xlim(xmin=0, xmax=50000)
     #ax.set_ylim(ymax=0.7)
     ax.set_xlabel('Episode', fontsize=50)
     ax.set_ylabel('Success Rate', fontsize=50)

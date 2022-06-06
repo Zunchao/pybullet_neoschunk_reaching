@@ -14,21 +14,24 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(os.path.dirname(currentdir))
 os.sys.path.insert(0, parentdir)
 
-from env.neobotixschunkGymEnv import NeobotixSchunkGymEnv
+from env.neobotixschunkGymEnvReaching import NeobotixSchunkGymEnvReaching
 #from gym_neoschunk.envs import NeobotixSchunkGymEnv
-
+#如果你安装了tensorflow
+from stable_baselines.common.env_checker import check_env
+# 如果你安装了pytorch
+# from stable_baselines3.common.env_checker import check_env
 
 def main():
-    environment = NeobotixSchunkGymEnv(urdf_root=parentdir, renders=1, is_discrete=0, action_repeat=3, max_steps=300, action_dim=6, ws_boundary=1,
-                                       random_initial=1, if_prioritized=0, if_obstacle=0, if_obstacle_moving=0, if_goal_moving_type='circle')
-
+    environment = NeobotixSchunkGymEnvReaching(urdf_root=parentdir, renders=1, is_discrete=0, action_repeat=1, max_steps=300, action_dim=10, ws_boundary=1,
+                                       random_initial=0, if_prioritized=0, if_obstacle=1, if_obstacle_moving=0, if_goal_moving_type='static', if_scenario=0)
     #envs = gym.make('gym_neoschunk:neoschunk-v0')
-    #check_env(envs)
+    print("check envs")
+    check_env(environment)
     #environment = NeobotixGymEnv(renders=1, isDiscrete=False, maxSteps=2e3, actionDim=2, colliObj=0, wsBoundary=1, randomInitial=0)environment = NeobotixSchunkGymEnv(renders=1, isDiscrete=False, maxSteps=3e3, actionDim=10, colliObj=0, wsBoundary=1, randomInitial=1)
     # environment._p.startStateLogging(environment._p.STATE_LOGGING_VIDEO_MP4, "TEST_GUI.mp4")
     dv = 1
     actionIds = []
-    dvalue = 1
+    dvalue = 0
     actionIds.append(environment._pb.addUserDebugParameter("arm_1_joint", -dv, dv, dvalue))
     actionIds.append(environment._pb.addUserDebugParameter("arm_2_joint", -dv, dv, dvalue))
     actionIds.append(environment._pb.addUserDebugParameter("arm_3_joint", -dv, dv, dvalue))
@@ -41,7 +44,7 @@ def main():
     actionIds.append(environment._pb.addUserDebugParameter("baseangularvelocity", -dv, dv, dvalue))
 
     done = 0
-    n_steps = 200
+    n_steps = 1000
 
     while not False:
         environment.reset()
@@ -53,7 +56,7 @@ def main():
                 action.append(environment._pb.readUserDebugParameter(actionId))
             #action = environment.action_space.sample()
             state, reward, done, info = environment.step(action)
-            #print('len', i, len(state), state, info, reward)
+            print('len', i, len(state), state, info, reward)
             #state, reward, done, info = environment.step(environment._sample_action())
             #print('step', state, reward, done, info)
             #obs = environment.getExtendedObservation()

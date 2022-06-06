@@ -24,7 +24,7 @@ from env.neobotixschunkGymEnv import NeobotixSchunkGymEnv
 # numpy warnings because of tensorflow
 warnings.filterwarnings("ignore", category=FutureWarning, module='tensorflow')
 warnings.filterwarnings("ignore", category=UserWarning, module='gym')
-
+from shutil import copyfile
 import gym
 import numpy as np
 import yaml
@@ -108,6 +108,8 @@ if __name__ == '__main__':
             closest_match = "'no close match found...'"
         raise ValueError('{} not found in gym registry, you maybe meant {}?'.format(env_id, closest_match))
     '''
+
+
     # Unique id to ensure there is no race condition for the folder creation
     uuid_str = '_{}'.format(uuid.uuid4()) if args.uuid else ''
     if args.seed < 0:
@@ -201,7 +203,7 @@ if __name__ == '__main__':
     else:
         n_timesteps = int(hyperparams['n_timesteps'])
 
-    normalize = False
+    normalize = True
     normalize_kwargs = {}
     if 'normalize' in hyperparams.keys():
         normalize = hyperparams['normalize']
@@ -230,6 +232,20 @@ if __name__ == '__main__':
     params_path = "{}/{}".format(save_path, env_id)
     os.makedirs(params_path, exist_ok=True)
 
+    # save file
+    copyfile(os.path.join(parentdir, 'env/neobotixschunk.py'),
+             os.path.join(save_path, 'env_robot.py'))
+    copyfile(os.path.join(parentdir, 'env/neobotixschunkGymEnvReaching.py'),
+             os.path.join(save_path, 'env_gym_reaching.py'))
+    copyfile(os.path.join(parentdir, 'env/neobotixschunkGymEnvTracking.py'),
+             os.path.join(save_path, 'env_gym_tracking.py'))
+    copyfile(os.path.join(parentdir, 'stable_baselines_scripts/zoo/hyperparams/ppo2.yml'),
+             os.path.join(save_path, 'ppo2.yml'))
+    copyfile(os.path.join(parentdir, 'stable_baselines_scripts/zoo/hyperparams/td3.yml'),
+             os.path.join(save_path, 'td3.yml'))
+    copyfile(os.path.join(parentdir, 'stable_baselines_scripts/zoo/utils/utils.py'),
+             os.path.join(save_path, 'utils.py'))
+
     callbacks = []
     if args.save_freq > 0:
         # Account for the number of parallel environments
@@ -251,7 +267,8 @@ if __name__ == '__main__':
         global env_kwargs
 
         # Do not log eval env (issue with writing the same file)
-        log_dir = None if eval_env else save_path
+        # log_dir = None if eval_env else save_path
+        log_dir = save_path if eval_env else save_path
 
         if is_atari:
             if args.verbose > 0:
@@ -269,7 +286,7 @@ if __name__ == '__main__':
         else:
             if n_envs == 1:
                 env = SubprocVecEnv([make_env(env_id, 0, args.seed, wrapper_class=env_wrapper, log_dir=log_dir, env_kwargs=env_kwargs)])
-                #env = DummyVecEnv([make_env(env_id, 0, args.seed, wrapper_class=env_wrapper, log_dir=log_dir, env_kwargs=env_kwargs)])
+                # env = DummyVecEnv([make_env(env_id, 0, args.seed, wrapper_class=env_wrapper, log_dir=log_dir, env_kwargs=env_kwargs)])
             else:
                 env = SubprocVecEnv([make_env(env_id, i, args.seed, log_dir=log_dir, wrapper_class=env_wrapper, env_kwargs=env_kwargs) for i in range(n_envs)])
                 # On most env, SubprocVecEnv does not help and is quite memory hungry
@@ -374,6 +391,7 @@ if __name__ == '__main__':
         if normalize:
             print("Loading saved running average")
             stats_path = os.path.join(exp_folder, env_id)
+            print(stats_path)
             if os.path.exists(os.path.join(stats_path, 'vecnormalize.pkl')):
                 env = VecNormalize.load(os.path.join(stats_path, 'vecnormalize.pkl'), env)
             else:

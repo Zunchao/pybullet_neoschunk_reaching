@@ -9,9 +9,10 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(os.path.dirname(currentdir))
 os.sys.path.insert(0, parentdir)
 
-from env.neobotixschunkGymEnv import NeobotixSchunkGymEnv
 from ddpg.mm2DRobotGymEnvCircle import MM2DRobotCGymEnv
-
+from env.neobotixschunkGymEnv import NeobotixSchunkGymEnv
+from env.neobotixschunkGymEnvReaching import NeobotixSchunkGymEnvReaching
+from env.neobotixschunkGymEnvTracking import NeobotixSchunkGymEnvTracking
 import gym
 try:
     import pybullet_envs
@@ -39,22 +40,6 @@ from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, VecFrameS
 from stable_baselines.common.cmd_util import make_atari_env
 from stable_baselines.common import set_global_seeds
 
-ENVIRONMENT_2D = MM2DRobotCGymEnv(maxstep=300, space=1, ifobs=0)
-
-ENVIRONMENT = NeobotixSchunkGymEnv(renders=False,
-                                   is_discrete=False,
-                                   reward_type='rdense',
-                                   if_prioritized=False,
-                                   action_repeat=1,
-                                   enable_self_collision_flag=True,
-                                   max_steps=500,
-                                   action_dim=6,
-                                   ws_boundary=1,
-                                   random_initial=True,
-                                   if_obstacle=True,
-                                   if_obstacle_moving=False,
-                                   if_goal_moving_type='static')
-
 ALGOS = {
     'her': HER,
     'sac': SAC,
@@ -76,14 +61,14 @@ class CustomDQNPolicy(FeedForwardPolicy):
 class CustomMlpPolicy(BasePolicy):
     def __init__(self, *args, **kwargs):
         super(CustomMlpPolicy, self).__init__(*args, **kwargs,
-                                              layers=[16],
+                                              layers=[128, 128],
                                               feature_extraction="mlp")
 
 
 class CustomSACPolicy(SACPolicy):
     def __init__(self, *args, **kwargs):
         super(CustomSACPolicy, self).__init__(*args, **kwargs,
-                                              #layers=[256, 256],
+                                              layers=[128, 128],
                                               feature_extraction="mlp")
 
 
@@ -111,7 +96,6 @@ def get_wrapper_class(hyperparams):
         - utils.wrappers.DoneOnSuccessWrapper:
             reward_offset: 1.0
         - utils.wrappers.TimeFeatureWrapper
-
 
     :param hyperparams: (dict)
     :return: a subclass of gym.Wrapper (class object) you can use to
@@ -186,11 +170,53 @@ def make_env(env_id, rank=0, seed=0, log_dir=None, wrapper_class=None, env_kwarg
 
     def _init():
         set_global_seeds(seed + rank)
-        print(env_id)
+        print("env id : ", env_id)
         if env_id == 'NeobotixSchunkBulletEnv-v0':
-            env = ENVIRONMENT
+            env = NeobotixSchunkGymEnv(renders=True,
+                                       is_discrete=False,
+                                       reward_type='rdense',
+                                       if_prioritized=False,
+                                       action_repeat=3,
+                                       enable_self_collision_flag=True,
+                                       max_steps=100,
+                                       action_dim=6,
+                                       ws_boundary=0.5,
+                                       random_initial=True,
+                                       if_obstacle=False,
+                                       if_obstacle_moving=False,
+                                       if_goal_moving_type='static')
+        elif env_id == 'NeobotixSchunkBulletEnvReaching-v0':
+            env = NeobotixSchunkGymEnvReaching(renders=False,
+                                               is_discrete=False,
+                                               reward_type='rdense',
+                                               if_prioritized=0,
+                                               action_repeat=1,
+                                               enable_self_collision_flag=True,
+                                               max_steps=200,
+                                               action_dim=10,
+                                               ws_boundary=0.5,
+                                               random_initial=True,
+                                               if_obstacle=False,
+                                               if_obstacle_moving=False,
+                                               if_goal_moving_type='static',
+                                               if_scenario=False,
+                                               result_dir=log_dir)
+        elif env_id == 'NeobotixSchunkBulletEnvTracking-v0':
+            env = NeobotixSchunkGymEnvTracking(renders=True,
+                                               is_discrete=False,
+                                               reward_type='rdense',
+                                               if_prioritized=False,
+                                               action_repeat=1,
+                                               enable_self_collision_flag=True,
+                                               max_steps=300,
+                                               action_dim=6,
+                                               ws_boundary=1,
+                                               random_initial=False,
+                                               if_obstacle=False,
+                                               if_obstacle_moving=False,
+                                               if_goal_moving_type='random')
         elif env_id == 'MM2DGymEnv-v0':
-            env = ENVIRONMENT_2D
+            env = MM2DRobotCGymEnv(maxstep=300, space=1, ifobs=0)
         else:
             env = gym.make(env_id, **env_kwargs)
 
@@ -256,7 +282,7 @@ def create_test_env(env_id, n_envs=1, is_atari=False,
     # Pybullet envs does not follow gym.render() interface
     elif "Bullet" in env_id:
         # HACK: force SubprocVecEnv for Bullet env
-        env = DummyVecEnv([make_env(env_id, 0, seed, log_dir, wrapper_class=env_wrapper, env_kwargs=env_kwargs)])
+        env = SubprocVecEnv([make_env(env_id, 0, seed, log_dir, wrapper_class=env_wrapper, env_kwargs=env_kwargs)])
     else:
         env = DummyVecEnv([make_env(env_id, 0, seed, log_dir, wrapper_class=env_wrapper, env_kwargs=env_kwargs)])
 

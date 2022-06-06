@@ -72,21 +72,22 @@ class NeobotixSchunk:
         #joint damping coefficents
         self.jd = [0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001, 0.00001]
         self.URDF_FILE_ROBOT = os.path.join(self.urdf_root_path, "pybullet_neoschunk_reaching/data/neobotixschunk/neobotixschunk.urdf")
+        self._pb = p
         self.reset()
 
     def reset(self):
         # load robot model
-        self.neobotix_schunk_uid = p.loadURDF(self.URDF_FILE_ROBOT, useFixedBase=True, flags=p.URDF_USE_SELF_COLLISION) # mp500lwa4d.urdf or neobotixschunk.urdf
+        self.neobotix_schunk_uid = self._pb.loadURDF(self.URDF_FILE_ROBOT, useFixedBase=True, flags=self._pb.URDF_USE_SELF_COLLISION) # mp500lwa4d.urdf or neobotixschunk.urdf
         joint_names = {}
-        for i in range(p.getNumJoints(self.neobotix_schunk_uid)):
-            joint_info = p.getJointInfo(self.neobotix_schunk_uid, i)
+        for i in range(self._pb.getNumJoints(self.neobotix_schunk_uid)):
+            joint_info = self._pb.getJointInfo(self.neobotix_schunk_uid, i)
             joint_names[joint_info[1].decode('UTF-8')] = joint_info[0]
             # print(joint_info)
 
-        self.j1_limit = p.getJointInfo(self.neobotix_schunk_uid, 6)[9]-0.01  # limits for arm link 1, 3, 5
-        self.j2_limit = p.getJointInfo(self.neobotix_schunk_uid, 7)[9]-0.01  # limits for arm link 2
-        self.j4_limit = p.getJointInfo(self.neobotix_schunk_uid, 9)[9]-0.01  # limits for arm link 4, 6
-        self.j7_limit = p.getJointInfo(self.neobotix_schunk_uid, 12)[9]-0.01  # limits for arm link 7
+        self.j1_limit = self._pb.getJointInfo(self.neobotix_schunk_uid, 6)[9]-0.01  # limits for arm link 1, 3, 5
+        self.j2_limit = self._pb.getJointInfo(self.neobotix_schunk_uid, 7)[9]-0.01  # limits for arm link 2
+        self.j4_limit = self._pb.getJointInfo(self.neobotix_schunk_uid, 9)[9]-0.01  # limits for arm link 4, 6
+        self.j7_limit = self._pb.getJointInfo(self.neobotix_schunk_uid, 12)[9]-0.01  # limits for arm link 7
         id_wheel_left_joint = joint_names['wheel_left_joint']
         id_wheel_right_joint = joint_names['wheel_right_joint']
 
@@ -113,53 +114,55 @@ class NeobotixSchunk:
         self.end_effector_index = id_grasping_frame_joint
         self.collision_check_index = [id_gripper_joint, id_gripper_l_joint, id_gripper_r_joint, id_arm_base_joint, id_arm_1_joint, id_arm_2_joint, id_arm_3_joint, id_arm_4_joint, id_arm_5_joint, id_arm_6_joint, id_arm_7_joint, id_base_joint, id_laser_joint, id_armpodest_joint]
         # disable collision between link 10 and 12 : arm link 5 and 7
-        p.setCollisionFilterPair(self.neobotix_schunk_uid, self.neobotix_schunk_uid, self.active_arm_index[4], self.active_arm_index[-1], enableCollision=0)
-        # p.createConstraint(self.neobotix_schunk_uid, -1, self.neobotix_schunk_uid, 5, p.JOINT_FIXED, [0, 0, 0], [0.19, 0, 0.5], [0., 0., 0])
+        self._pb.setCollisionFilterPair(self.neobotix_schunk_uid, self.neobotix_schunk_uid, self.active_arm_index[4], self.active_arm_index[-1], enableCollision=0)
+        # self._pb.createConstraint(self.neobotix_schunk_uid, -1, self.neobotix_schunk_uid, 5, self._pb.JOINT_FIXED, [0, 0, 0], [0.19, 0, 0.5], [0., 0., 0])
 
         initial_wheel_vel = np.zeros(len(self.wheel_index))
         self.base_velocity = np.zeros(3)
         self.wheel_velocity = np.zeros(2)
         initial_basep = np.zeros(3)
+        initial_basep[0] = 0.
+        initial_basep[1] = -0.
         initial_baseo = np.array([0, 0, 0, 1])
-        p.resetBasePositionAndOrientation(self.neobotix_schunk_uid, initial_basep, initial_baseo)
-        p.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
-                            linearVelocity=self.base_velocity,
-                            angularVelocity=self.base_velocity)
+        self._pb.resetBasePositionAndOrientation(self.neobotix_schunk_uid, initial_basep, initial_baseo)
+        self._pb.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
+                                   linearVelocity=self.base_velocity,
+                                   angularVelocity=self.base_velocity)
 
         self.joint_position = np.zeros(len(self.active_arm_index))
         self.joint_velocity = np.zeros(len(self.active_arm_index))
         '''
-        p.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
+        self._pb.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
                                     jointIndices=self.active_arm_index,
-                                    controlMode=p.VELOCITY_CONTROL,
+                                    controlMode=self._pb.VELOCITY_CONTROL,
                                     targetVelocities=self.joint_velocity,
                                     forces=len(self.active_arm_index)*[self.max_force])
         
         for i in range(len(self.wheel_index)):
-            p.resetJointState(self.neobotix_schunk_uid,
+            self._pb.resetJointState(self.neobotix_schunk_uid,
                               jointIndex=self.wheel_index[i],
                               targetValue=initial_wheel_vel[i],
                               targetVelocity=initial_wheel_vel[i])
-            p.setJointMotorControl2(bodyUniqueId=self.neobotix_schunk_uid,
+            self._pb.setJointMotorControl2(bodyUniqueId=self.neobotix_schunk_uid,
                                     jointIndex=self.wheel_index[i],
-                                    controlMode=p.VELOCITY_CONTROL,
+                                    controlMode=self._pb.VELOCITY_CONTROL,
                                     targetVelocity=initial_wheel_vel[i],
                                     force=self.max_force)
         '''
 
         for j in range(len(self.active_arm_index)):
-            p.resetJointState(self.neobotix_schunk_uid,
-                              jointIndex=self.active_arm_index[j],
-                              targetValue=self.joint_position[j],
-                              targetVelocity=0)
+            self._pb.resetJointState(self.neobotix_schunk_uid,
+                                     jointIndex=self.active_arm_index[j],
+                                     targetValue=self.joint_position[j],
+                                     targetVelocity=0)
         '''
-        p.setJointMotorControl2(bodyUniqueId=self.neobotix_schunk_uid,
+        self._pb.setJointMotorControl2(bodyUniqueId=self.neobotix_schunk_uid,
                                 jointIndex=self.active_arm_index[j],
-                                controlMode=p.POSITION_CONTROL,
+                                controlMode=self._pb.POSITION_CONTROL,
                                 targetPosition=self.joint_position[j],
                                 maxVelocity=0)
         
-        p.enableJointForceTorqueSensor(bodyUniqueId=self.neobotix_schunk_uid,
+        self._pb.enableJointForceTorqueSensor(bodyUniqueId=self.neobotix_schunk_uid,
                                        jointIndex=self.active_arm_index[j],
                                        enableSensor=True)
         '''
@@ -179,22 +182,22 @@ class NeobotixSchunk:
         j7 = self.np_random.uniform(-self.j7_limit, self.j7_limit)
         self.joint_position = np.array([j1, j2, j3, j4, j5, j6, j7])
         for j in range(len(self.active_arm_index)):
-            p.resetJointState(self.neobotix_schunk_uid,
-                              jointIndex=self.active_arm_index[j],
-                              targetValue=self.joint_position[j],
-                              targetVelocity=0)
+            self._pb.resetJointState(self.neobotix_schunk_uid,
+                                     jointIndex=self.active_arm_index[j],
+                                     targetValue=self.joint_position[j],
+                                     targetVelocity=0)
         # do not need random set base if relative positions are used
         '''
         # initial_joint_positions = np.zeros(len(self.active_arm_index))
-        bpos, born = p.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        initial_basep = np.array([self.np_random.uniform(-self.ws_boundary, self.ws_boundary),
-                                  self.np_random.uniform(-self.ws_boundary, self.ws_boundary),
+        bpos, born = self._pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        initial_basep = np.array([self.np_random.uniform(-self.ws_range, self.ws_range),
+                                  self.np_random.uniform(-self.ws_range, self.ws_range),
                                   bpos[2]])
         initial_basea = np.array([0, 0, self.np_random.uniform(-np.pi, np.pi)])
-        initial_baseo = p.getQuaternionFromEuler(initial_basea)
-
-        p.resetBasePositionAndOrientation(self.neobotix_schunk_uid, initial_basep, initial_baseo)
-        p.resetBaseVelocity(self.neobotix_schunk_uid, np.zeros(3), np.zeros(3))
+        initial_baseo = self._pb.getQuaternionFromEuler(initial_basea)
+        
+        self._pb.resetBasePositionAndOrientation(self.neobotix_schunk_uid, initial_basep, initial_baseo)
+        self._pb.resetBaseVelocity(self.neobotix_schunk_uid, np.zeros(3), np.zeros(3))    
         '''
     
     def getActionDimension(self):
@@ -210,38 +213,37 @@ class NeobotixSchunk:
         """
         observation = []
         # get ee pose and vel
-        ee_link_state = p.getLinkState(self.neobotix_schunk_uid,
-                               linkIndex=self.end_effector_index,
-                               computeLinkVelocity=True,
-                               computeForwardKinematics=True)
+        ee_link_state = self._pb.getLinkState(self.neobotix_schunk_uid,
+                                              linkIndex=self.end_effector_index,
+                                              computeLinkVelocity=True,
+                                              computeForwardKinematics=True)
         pos = ee_link_state[0]
         orn = ee_link_state[1]
-        euler = p.getEulerFromQuaternion(orn)
+        euler = self._pb.getEulerFromQuaternion(orn)
         vell = ee_link_state[6]
         vela = ee_link_state[7]
         observation.extend(list(pos))  # 0,1,2
         observation.extend(list(euler))  # 3,4,5
         observation.extend(list(vell))  # 6,7,8
         observation.extend(list(vela))  # 9,10,11
-
         # get base pose
-        basepos, baseorn = p.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        baseeul = p.getEulerFromQuaternion(baseorn)
+        basepos, baseorn = self._pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        baseeul = self._pb.getEulerFromQuaternion(baseorn)
         observation.extend(list(basepos))  # 12,13,14
         observation.extend(list(baseeul))  # 15,16,17
         # get base linear and angular vel
-        basev = p.getBaseVelocity(self.neobotix_schunk_uid)
+        basev = self._pb.getBaseVelocity(self.neobotix_schunk_uid)
         observation.extend(list(basev[0]))  # 18,19,20
         observation.extend(list(basev[1]))  # 21,22,23
 
         # get joint positions and velocities
-        joint_s = p.getJointStates(bodyUniqueId=self.neobotix_schunk_uid,  jointIndices=self.active_arm_index)
+        joint_s = self._pb.getJointStates(bodyUniqueId=self.neobotix_schunk_uid,  jointIndices=self.active_arm_index)
         joints = [x[0] for x in joint_s]
         jointv = [x[1] for x in joint_s]
         observation.extend(list(joints))  # 24,25,26,27,28,29,30
         observation.extend(list(jointv))  # 31,32,33,34,35,36,37
         '''
-        bm_rotation = p.getMatrixFromQuaternion(baseorn)
+        bm_rotation = self._pb.getMatrixFromQuaternion(baseorn)
         bm_transform = np.array([bm_rotation[0], bm_rotation[1], bm_rotation[2], basepos[0],
                                  bm_rotation[3], bm_rotation[4], bm_rotation[5], basepos[1],
                                  bm_rotation[6], bm_rotation[7], bm_rotation[8], basepos[2],
@@ -252,30 +254,30 @@ class NeobotixSchunk:
         #print('base orientation in world : ', bm_rotation)
         #print('transformation matrix from base to world : ', bm_transforms)
         #print('inverse transformation matrix - from world to base: ', bm_transform_inv)
-        ee_world_pos_transform_invert,  ee_world_ori_transform_invert = p.invertTransform(pos, orn)
+        ee_world_pos_transform_invert,  ee_world_ori_transform_invert = self._pb.invertTransform(pos, orn)
         
-        base_world_pos_transform_invert,  base_world_ori_transform_invert = p.invertTransform(basepos, baseorn)
-        #print('invert transformation matrix - from world to base: ', p.getMatrixFromQuaternion(p.invertTransform(basepos, baseorn)[1]), p.invertTransform(basepos, baseorn)[0])
-        ee_base_pos, ee_base_ori = p.multiplyTransforms(base_world_pos_transform_invert,  base_world_ori_transform_invert, pos, orn)
-        #print('transform of ee in base frame : ', ee_base_pos, ee_base_ori, p.getMatrixFromQuaternion(ee_base_ori), p.getEulerFromQuaternion(ee_base_ori))
-        ee_base_ang = p.getEulerFromQuaternion(ee_base_ori)
+        base_world_pos_transform_invert,  base_world_ori_transform_invert = self._pb.invertTransform(basepos, baseorn)
+        #print('invert transformation matrix - from world to base: ', self._pb.getMatrixFromQuaternion(self._pb.invertTransform(basepos, baseorn)[1]), self._pb.invertTransform(basepos, baseorn)[0])
+        ee_base_pos, ee_base_ori = self._pb.multiplyTransforms(base_world_pos_transform_invert,  base_world_ori_transform_invert, pos, orn)
+        #print('transform of ee in base frame : ', ee_base_pos, ee_base_ori, self._pb.getMatrixFromQuaternion(ee_base_ori), self._pb.getEulerFromQuaternion(ee_base_ori))
+        ee_base_ang = self._pb.getEulerFromQuaternion(ee_base_ori)
         '''
         # get ee pose in base frame
-        ee_base_pos, ee_base_ang = self.calculate_in_base_frame(pos, orn)#p.getEulerFromQuaternion(ee_base_ori)
+        ee_base_pos, ee_base_ang = self.calculate_in_base_frame(pos, orn)#self._pb.getEulerFromQuaternion(ee_base_ori)
         observation.extend(ee_base_pos)  # 38,39,40
         observation.extend(ee_base_ang)  # 41,42,43
         '''
         for i in self.active_arm_index:
-            links = p.getLinkState(self.neobotix_schunk_uid, linkIndex=i)
-            arm_base_pos, arm_base_ori = p.multiplyTransforms(base_world_pos_transform_invert,
+            links = self._pb.getLinkState(self.neobotix_schunk_uid, linkIndex=i)
+            arm_base_pos, arm_base_ori = self._pb.multiplyTransforms(base_world_pos_transform_invert,
                                                             base_world_ori_transform_invert, links[4], links[5])
-            arm_base_ang = p.getEulerFromQuaternion(arm_base_ori)
+            arm_base_ang = self._pb.getEulerFromQuaternion(arm_base_ori)
             observation.extend(arm_base_pos)
             observation.extend(arm_base_ang)
             #print(joints)
         '''
         '''
-        ee_rotation = p.getMatrixFromQuaternion(p.getQuaternionFromEuler(euler))
+        ee_rotation = self._pb.getMatrixFromQuaternion(self._pb.getQuaternionFromEuler(euler))
         ee_transform = np.array([ee_rotation[0], ee_rotation[1], ee_rotation[2], pos[0],
                                  ee_rotation[3], ee_rotation[4], ee_rotation[5], pos[1],
                                  ee_rotation[6], ee_rotation[7], ee_rotation[8], pos[2],
@@ -302,14 +304,14 @@ class NeobotixSchunk:
         ee_ori_base = bm_transform_inv.dot(ee_ori_world)[0:3]
         print('ee orientation in base frame : ', ee_ori_base)
         '''
-        #print(p.getLinkState(self.neobotix_schunk_uid, 7))
+        #print(self._pb.getLinkState(self.neobotix_schunk_uid, 7))
         #for i in self.active_arm_index:
-            #joints = p.getJointState(bodyUniqueId=self.neobotix_schunk_uid, jointIndex=i)
+            #joints = self._pb.getJointState(bodyUniqueId=self.neobotix_schunk_uid, jointIndex=i)
             #observation.append((joints[0]))
             #observation.append((joints[1]))
             #print(joints)
         #for i in self.wheel_index:
-            #vt = p.getJointState(self.neobotix_schunk_uid, jointIndex=i)
+            #vt = self._pb.getJointState(self.neobotix_schunk_uid, jointIndex=i)
             #observation.append((vt[1]))
         return observation
 
@@ -320,13 +322,13 @@ class NeobotixSchunk:
         :param orn:
         :return:
         """
-        basepos, baseorn = p.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        base_world_pos_transform_invert, base_world_ori_transform_invert = p.invertTransform(basepos, baseorn)
-        # print('invert transformation matrix - from world to base: ', p.getMatrixFromQuaternion(p.invertTransform(basepos, baseorn)[1]), p.invertTransform(basepos, baseorn)[0])
-        in_base_pos, in_base_ori = p.multiplyTransforms(base_world_pos_transform_invert,
+        basepos, baseorn = self._pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        base_world_pos_transform_invert, base_world_ori_transform_invert = self._pb.invertTransform(basepos, baseorn)
+        # print('invert transformation matrix - from world to base: ', self._pb.getMatrixFromQuaternion(self._pb.invertTransform(basepos, baseorn)[1]), self._pb.invertTransform(basepos, baseorn)[0])
+        in_base_pos, in_base_ori = self._pb.multiplyTransforms(base_world_pos_transform_invert,
                                                         base_world_ori_transform_invert, pos, orn)
-        # print('transform of ee in base frame : ', ee_base_pos, ee_base_ori, p.getMatrixFromQuaternion(ee_base_ori), p.getEulerFromQuaternion(ee_base_ori))
-        in_base_ang = p.getEulerFromQuaternion(in_base_ori)
+        # print('transform of ee in base frame : ', ee_base_pos, ee_base_ori, self._pb.getMatrixFromQuaternion(ee_base_ori), self._pb.getEulerFromQuaternion(ee_base_ori))
+        in_base_ang = self._pb.getEulerFromQuaternion(in_base_ori)
         return in_base_pos, in_base_ang
 
     def calculate_in_non_world_frame(self, i, pos, orn):
@@ -337,10 +339,10 @@ class NeobotixSchunk:
         :param orn:
         :return:
         """
-        links = p.getLinkState(self.neobotix_schunk_uid, linkIndex=i)
-        i_world_pos_transform_invert, i_world_ori_transform_invert = p.invertTransform(links[4], links[5])
-        i_pos, i_ori = p.multiplyTransforms(i_world_pos_transform_invert, i_world_ori_transform_invert, pos, orn)
-        i_ang = p.getEulerFromQuaternion(i_ori)
+        links = self._pb.getLinkState(self.neobotix_schunk_uid, linkIndex=i)
+        i_world_pos_transform_invert, i_world_ori_transform_invert = self._pb.invertTransform(links[4], links[5])
+        i_pos, i_ori = self._pb.multiplyTransforms(i_world_pos_transform_invert, i_world_ori_transform_invert, pos, orn)
+        i_ang = self._pb.getEulerFromQuaternion(i_ori)
         return i_pos, i_ang
 
     def check_base_velocity(self, base_vel):
@@ -428,12 +430,12 @@ class NeobotixSchunk:
         """
         '''
         for i in self.robot.checkCollisonIndex:
-            dcontact = p.getContactPoints(self.robot.neobotix_schunk_uid, self.robot.neobotix_schunk_uid, i)
+            dcontact = self._pb.getContactPoints(self.robot.neobotix_schunk_uid, self.robot.neobotix_schunk_uid, i)
             if len(dcontact):
                 #print('self collision!', dcontact)
                 return True
         '''
-        if len(p.getContactPoints(self.neobotix_schunk_uid, self.neobotix_schunk_uid)):
+        if len(self._pb.getContactPoints(self.neobotix_schunk_uid, self.neobotix_schunk_uid)):
             return True
         return False
 
@@ -457,51 +459,50 @@ class NeobotixSchunk:
         :return:
         """
         '''
-        gripper_l_state = p.getLinkState(bodyUniqueId=self.neobotix_schunk_uid, linkIndex=self.collision_check_index[1])
+        gripper_l_state = self._pb.getLinkState(bodyUniqueId=self.neobotix_schunk_uid, linkIndex=self.collision_check_index[1])
         gripper_l_pos = gripper_l_state
-        gripper_r_state = p.getLinkState(bodyUniqueId=self.neobotix_schunk_uid, linkIndex=self.collision_check_index[2])
+        gripper_r_state = self._pb.getLinkState(bodyUniqueId=self.neobotix_schunk_uid, linkIndex=self.collision_check_index[2])
         gripper_r_pos = gripper_r_state
         '''
         self.base_velocity += action[7:10]
         self.base_velocity = self.check_base_velocity(self.base_velocity)
-        basepos, baseorn = p.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        b_rotation = p.getMatrixFromQuaternion(baseorn)
+        basepos, baseorn = self._pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        b_rotation = self._pb.getMatrixFromQuaternion(baseorn)
         bm_rotation = np.array(b_rotation).reshape(3, 3)
         self.base_velocity = bm_rotation.dot(self.base_velocity)
         vel = np.array([self.base_velocity[0], self.base_velocity[1], 0])
         ang = np.array([0, 0, self.base_velocity[2]])
 
         '''
-        mb_link_state1 = p.getLinkState(self.neobotix_schunk_uid, 5, False, False)
-        mb_ang_w1 = p.getEulerFromQuaternion(mb_link_state1[5])[2]
-        mb_link_state = p.getLinkState(self.neobotix_schunk_uid, 0, False, False)
-        mb_ang_w = p.getEulerFromQuaternion(mb_link_state[5])[2]
+        mb_link_state1 = self._pb.getLinkState(self.neobotix_schunk_uid, 5, False, False)
+        mb_ang_w1 = self._pb.getEulerFromQuaternion(mb_link_state1[5])[2]
+        mb_link_state = self._pb.getLinkState(self.neobotix_schunk_uid, 0, False, False)
+        mb_ang_w = self._pb.getEulerFromQuaternion(mb_link_state[5])[2]
         self.base_velocity = self.rotation_matrix(mb_ang_w).dot(self.base_velocity)
         '''
         self.joint_position += action[0:7]
         self.joint_position, self.joint_velocity, flag = self.check_joint_states(self.joint_position, self.joint_velocity)
         #self.joint_velocity += action[0:7]
-        #jointstates = p.getJointStates(self.neobotix_schunk_uid, jointIndices=self.active_arm_index)
+        #jointstates = self._pb.getJointStates(self.neobotix_schunk_uid, jointIndices=self.active_arm_index)
         #jpos = [x[0] for x in jointstates]
         #self.joint_velocity = self.check_joint_vels(self.joint_velocity)
         #self.joint_position, self.joint_velocity, flag = self.check_joint_states(jpos, self.joint_velocity)
 
-        p.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
-                            linearVelocity=vel,
-                            angularVelocity=ang)
+        self._pb.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
+                                   linearVelocity=vel,
+                                   angularVelocity=ang)
         '''
-        p.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
+        self._pb.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
                                     jointIndices=self.active_arm_index,
-                                    controlMode=p.VELOCITY_CONTROL,
+                                    controlMode=self._pb.VELOCITY_CONTROL,
                                     targetVelocities=self.joint_velocity,
                                     forces=len(self.active_arm_index)*[self.max_force])
         '''
-        p.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
-                                    jointIndices=self.active_arm_index,
-                                    controlMode=p.POSITION_CONTROL,
-                                    targetPositions=self.joint_position,
-                                    forces=len(self.active_arm_index)*[self.max_force])#, maxVelocity=0.43633 , positionGain=1e-5, velocityGain=1e-5)
-
+        self._pb.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
+                                           jointIndices=self.active_arm_index,
+                                           controlMode=self._pb.POSITION_CONTROL,
+                                           targetPositions=self.joint_position,
+                                           forces=len(self.active_arm_index)*[self.max_force])#, maxVelocity=0.43633 , positionGain=1e-5, velocityGain=1e-5)
 
     def applyAction_ee(self, action):
         """
@@ -510,15 +511,15 @@ class NeobotixSchunk:
         :return:
         """
         '''
-        basev = p.getBaseVelocity(self.neobotix_schunk_uid)
+        basev = self._pb.getBaseVelocity(self.neobotix_schunk_uid)
         self.base_velocity[0:2] = np.array(basev[0][0:2])
         self.base_velocity[2] = basev[1][2]
         print('0', basev)
         '''
         self.base_velocity += action[3:6]
         self.base_velocity = self.check_base_velocity(self.base_velocity)
-        basepos, baseorn = p.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        b_rotation = p.getMatrixFromQuaternion(baseorn)
+        basepos, baseorn = self._pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        b_rotation = self._pb.getMatrixFromQuaternion(baseorn)
         bm_rotation = np.array(b_rotation).reshape(3, 3)
         self.base_velocity = bm_rotation.dot(self.base_velocity)
         vel = np.array([self.base_velocity[0], self.base_velocity[1], 0])
@@ -531,7 +532,7 @@ class NeobotixSchunk:
         bm_transforms = bm_transform.reshape(4, 4)
         bm_transform_inv = np.linalg.inv(bm_transforms)
         '''
-        ee_link_state = p.getLinkState(self.neobotix_schunk_uid, linkIndex=self.end_effector_index)
+        ee_link_state = self._pb.getLinkState(self.neobotix_schunk_uid, linkIndex=self.end_effector_index)
         actual_ee_position = ee_link_state[0]
         '''
         ee_pose_world = np.array([actual_ee_position[0], actual_ee_position[1], actual_ee_position[2], 1])
@@ -539,19 +540,18 @@ class NeobotixSchunk:
         '''
         actual_ee_position += action[0:3]
         actual_ee_position[2] = np.clip(actual_ee_position[2], 0.45, 1.65)
-        joint_position = p.calculateInverseKinematics(self.neobotix_schunk_uid, self.end_effector_index, actual_ee_position)
+        joint_position = self._pb.calculateInverseKinematics(self.neobotix_schunk_uid, self.end_effector_index, actual_ee_position)
         self.joint_position = joint_position[2:9]
 
-        p.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
-                            linearVelocity=vel,
-                            angularVelocity=ang)
+        self._pb.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
+                                   linearVelocity=vel,
+                                   angularVelocity=ang)
 
-        p.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
-                                    jointIndices=self.active_arm_index,
-                                    controlMode=p.POSITION_CONTROL,
-                                    targetPositions=self.joint_position,
-                                    forces=len(self.active_arm_index) * [self.max_force])  # , maxVelocity=0.43633 , positionGain=1e-5, velocityGain=1e-5)
-
+        self._pb.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
+                                           jointIndices=self.active_arm_index,
+                                           controlMode=self._pb.POSITION_CONTROL,
+                                           targetPositions=self.joint_position,
+                                           forces=len(self.active_arm_index) * [self.max_force])  # , maxVelocity=0.43633 , positionGain=1e-5, velocityGain=1e-5)
 
     def applyAction_ee_ori(self, action):
         """
@@ -561,8 +561,8 @@ class NeobotixSchunk:
         """
         self.base_velocity += action[6:9]
         self.base_velocity = self.check_base_velocity(self.base_velocity)
-        basepos, baseorn = p.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        b_rotation = p.getMatrixFromQuaternion(baseorn)
+        basepos, baseorn = self._pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        b_rotation = self._pb.getMatrixFromQuaternion(baseorn)
         bm_rotation = np.array(b_rotation).reshape(3, 3)
         self.base_velocity = bm_rotation.dot(self.base_velocity)
         vel = np.array([self.base_velocity[0], self.base_velocity[1], 0])
@@ -575,9 +575,9 @@ class NeobotixSchunk:
         bm_transforms = bm_transform.reshape(4, 4)
         bm_transform_inv = np.linalg.inv(bm_transforms)
         '''
-        ee_link_state = p.getLinkState(self.neobotix_schunk_uid, linkIndex=self.end_effector_index)
+        ee_link_state = self._pb.getLinkState(self.neobotix_schunk_uid, linkIndex=self.end_effector_index)
         actual_ee_position = ee_link_state[0]
-        actual_ee_orientation = p.getEulerFromQuaternion(ee_link_state[1])
+        actual_ee_orientation = self._pb.getEulerFromQuaternion(ee_link_state[1])
         '''
         ee_pose_world = np.array([actual_ee_position[0], actual_ee_position[1], actual_ee_position[2], 1])
         actual_ee_position = bm_transform_inv.dot(ee_pose_world)[0:3]
@@ -588,18 +588,16 @@ class NeobotixSchunk:
         #actual_ee_position[1] = np.clip(actual_ee_position[1], -0.8, 0.8)
         actual_ee_position[2] = np.clip(actual_ee_position[2], 0.45, 1.65)
         actual_ee_orientation = np.clip(actual_ee_orientation, -np.ones(3)*np.pi, np.ones(3)*np.pi)
-        actual_ee_orientation = p.getQuaternionFromEuler(actual_ee_orientation)
-        joint_position = p.calculateInverseKinematics(self.neobotix_schunk_uid, self.end_effector_index, actual_ee_position, actual_ee_orientation, jointDamping=self.jd)
+        actual_ee_orientation = self._pb.getQuaternionFromEuler(actual_ee_orientation)
+        joint_position = self._pb.calculateInverseKinematics(self.neobotix_schunk_uid, self.end_effector_index, actual_ee_position, actual_ee_orientation, jointDamping=self.jd)
         self.joint_position = joint_position[2:9]
 
-        p.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
-                            linearVelocity=vel,
-                            angularVelocity=ang)
+        self._pb.resetBaseVelocity(objectUniqueId=self.neobotix_schunk_uid,
+                                   linearVelocity=vel,
+                                   angularVelocity=ang)
 
-        p.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
-                                    jointIndices=self.active_arm_index,
-                                    controlMode=p.POSITION_CONTROL,
-                                    targetPositions=self.joint_position,
-                                    forces=len(self.active_arm_index) * [self.max_force])  # , maxVelocity=0.43633 , positionGain=1e-5, velocityGain=1e-5)
-
-
+        self._pb.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
+                                           jointIndices=self.active_arm_index,
+                                           controlMode=self._pb.POSITION_CONTROL,
+                                           targetPositions=self.joint_position,
+                                           forces=len(self.active_arm_index) * [self.max_force])  # , maxVelocity=0.43633 , positionGain=1e-5, velocityGain=1e-5)

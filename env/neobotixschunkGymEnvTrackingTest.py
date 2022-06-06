@@ -14,16 +14,27 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(os.path.dirname(currentdir))
 os.sys.path.insert(0, parentdir)
 
-from env.neobotixschunkGymEnv import NeobotixSchunkGymEnv
+from env.neobotixschunkGymEnvTracking import NeobotixSchunkGymEnvTracking
 #from gym_neoschunk.envs import NeobotixSchunkGymEnv
-
+from stable_baselines.common.env_checker import check_env
 
 def main():
-    environment = NeobotixSchunkGymEnv(urdf_root=parentdir, renders=1, is_discrete=0, action_repeat=3, max_steps=300, action_dim=6, ws_boundary=1,
-                                       random_initial=1, if_prioritized=0, if_obstacle=0, if_obstacle_moving=0, if_goal_moving_type='circle')
+    environment = NeobotixSchunkGymEnvTracking(urdf_root=parentdir,
+                                               renders=1,
+                                               is_discrete=0,
+                                               action_repeat=1,
+                                               max_steps=200,
+                                               action_dim=6,
+                                               ws_boundary=1,
+                                               random_initial=1,
+                                               if_prioritized=0,
+                                               if_obstacle=0,
+                                               if_obstacle_moving=0,
+                                               if_goal_moving_type='static')
 
     #envs = gym.make('gym_neoschunk:neoschunk-v0')
-    #check_env(envs)
+    print('-------------- check env ------')
+    check_env(environment, 1)
     #environment = NeobotixGymEnv(renders=1, isDiscrete=False, maxSteps=2e3, actionDim=2, colliObj=0, wsBoundary=1, randomInitial=0)environment = NeobotixSchunkGymEnv(renders=1, isDiscrete=False, maxSteps=3e3, actionDim=10, colliObj=0, wsBoundary=1, randomInitial=1)
     # environment._p.startStateLogging(environment._p.STATE_LOGGING_VIDEO_MP4, "TEST_GUI.mp4")
     dv = 1
@@ -51,9 +62,9 @@ def main():
             action = []
             for actionId in actionIds:
                 action.append(environment._pb.readUserDebugParameter(actionId))
-            #action = environment.action_space.sample()
+            action = environment.action_space.sample()
             state, reward, done, info = environment.step(action)
-            #print('len', i, len(state), state, info, reward)
+            print('len', i, len(state), state, info, reward)
             #state, reward, done, info = environment.step(environment._sample_action())
             #print('step', state, reward, done, info)
             #obs = environment.getExtendedObservation()

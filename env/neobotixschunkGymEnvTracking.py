@@ -42,7 +42,7 @@ PATH_POINT_RADIUS = 0.01
 COLLISION_THRESHOLD = 0.5
 
 
-class NeobotixSchunkGymEnv(gym.Env):
+class NeobotixSchunkGymEnvTracking(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': 50
@@ -64,6 +64,7 @@ class NeobotixSchunkGymEnv(gym.Env):
                  if_obstacle=False,
                  if_obstacle_moving=False,
                  if_goal_moving_type='static'):
+        super(NeobotixSchunkGymEnvTracking, self).__init__()
         self.urdf_root = urdf_root
         self.action_repeat = action_repeat
         self.enable_self_collision_flag = enable_self_collision_flag
@@ -127,8 +128,10 @@ class NeobotixSchunkGymEnv(gym.Env):
         self.DATA_STEPS = None
 
         self.cam_dist = 4
-        self.cam_yaw = 180
-        self.cam_pitch = -40
+        self.cam_yaw = 0
+        self.cam_pitch = -89.9
+
+        self.disc_total_reward = 0
 
         if self.if_rendering:
             cid = self._pb.connect(self._pb.SHARED_MEMORY)
@@ -183,9 +186,9 @@ class NeobotixSchunkGymEnv(gym.Env):
         if self.if_goal_moving_type == 'circle':
             path_end = 'circle'
         path_csv = '_' + path_date + '_' + path_end + '.csv'
-        self.DATA_SUCCESS_RATE = os.path.join(self.urdf_root, 'pybullet_neoschunk_reaching/results/success_rate'+path_csv)
-        self.DATA_ACTION = os.path.join(self.urdf_root, 'pybullet_neoschunk_reaching/results/action'+path_csv)
-        self.DATA_STEPS = os.path.join(self.urdf_root, 'pybullet_neoschunk_reaching/results/steps'+path_csv)
+        #self.DATA_SUCCESS_RATE = os.path.join(self.urdf_root, 'pybullet_neoschunk_reaching/results/success_rate'+path_csv)
+        #self.DATA_ACTION = os.path.join(self.urdf_root, 'pybullet_neoschunk_reaching/results/action'+path_csv)
+        #self.DATA_STEPS = os.path.join(self.urdf_root, 'pybullet_neoschunk_reaching/results/steps'+path_csv)
 
     def reset_params(self):
         self.r_penalty_collision = 0
@@ -250,34 +253,20 @@ class NeobotixSchunkGymEnv(gym.Env):
         self._pb.stepSimulation()
         self.observation = self.getExtendedObservation()
         self.goal.goal_position = self.ee_position
+        self.goal.goal_orientation = self._pb.getQuaternionFromEuler(self.observation[3:6])
         self.goal.resetGoal()
         self.former_ee_pos = self.ee_position
         self.former_base_pos = self.base_position
+        self.former_goal_pos = self.goal.goal_position
         self.init_ee = self.ee_position
         self.init_goal = self.goal.goal_position
         self.dis_ee_init = np.linalg.norm(np.subtract(self.ee_position, self.goal.goal_position))
         self.dis_base = np.linalg.norm(np.subtract(self.base_position, self.goal.goal_position))
         self.dis_ee = self.dis_ee_init
         self.dis_vor = self.dis_ee_init
-        #self.heu_reward_function = heuristicReward.HeuristicReward(self.ee_position[0:2], self.goal_position[0:2], self.obstacle_position[0:2])
-        data_writer_file = csv.writer(open(self.DATA_SUCCESS_RATE, "a"))
 
-        if self.episode_counter:
-            success_rate_update = 0
-            if self.update_step_counter:
-                success_rate_update = self.success_update_counter / self.update_step_counter
-            success_rate_total = self.total_success_counter / self.episode_counter
-            data_writer_file.writerow([self.episode_counter, self.total_success_counter, success_rate_total, self.update_step_counter, self.success_update_counter, success_rate_update])
-            if not self.episode_counter%SUCCESS_STEPS_UPDATE:
-                self.success_update_counter = 0
-                self.update_step_counter = 0
-            print('Episode :', self.episode_counter,
-                  ' SuccessTotal :', self.total_success_counter,
-                  ' success_rate_total :', success_rate_total,
-                  f' StepUpdate : {self.update_step_counter}/{SUCCESS_STEPS_UPDATE}',
-                  f' SuccessUpdate : {self.success_update_counter}/{SUCCESS_STEPS_UPDATE}',
-                  ' success_rate_updateUpdate :', success_rate_update)
-
+        print('Episode :', self.episode_counter, ' Total Reward :', self.disc_total_reward)
+        self.disc_total_reward = 0
         return self.observation
 
     def calculate_point2line(self, point, line_endpoint1, line_endpoint2):
@@ -468,11 +457,6 @@ class NeobotixSchunkGymEnv(gym.Env):
                 #self._pb.stopStateLogging(self.logvideo)
                 break
             self.step_counter_per_episode += 1
-        if self.terminated == 1:
-            action_data_writer_file = csv.writer(open(self.DATA_ACTION, "a"))
-            action_data_writer_file.writerow(
-                [self.step_counter_per_episode, action_scaled[0], action_scaled[1], action_scaled[2], action_scaled[3],
-                 action_scaled[4], action_scaled[5]])
 
         if self.if_rendering:
             #self._pb.createMultiBody(baseMass=0, basePosition=self.ee_position, baseVisualShapeIndex=self.path_point_ee)
@@ -541,23 +525,8 @@ class NeobotixSchunkGymEnv(gym.Env):
             print('ACHTUNG : self-collision!')
             return True
 
-        if self.dis_ee < 0.05:#0.2/self.sound_reaching_number:
-            self.r_termination = 10*self.sound_reaching_number
-            self.sound_reaching_counter_per_episode += 1
-            self.sound_reaching_number += 1
-            steps_data_writer_file = csv.writer(open(self.DATA_STEPS, "a"))
-            steps_data_writer_file.writerow([self.episode_counter, self.step_counter_per_episode])
-            if self.sound_reaching_number == 2:
-                self.terminated = 1
-                self.r_termination = 10000
-                self.success_update_counter += 1
-                self.total_success_counter += 1
-                print('Terminate reaching at step ', self.step_counter_per_episode, ' in episode ', self.episode_counter)
-                print('observation : ', self.observation, ' goal : ', self.goal.goal_position, ' distance : ', self.dis_ee)
-                return True
-
         if self.step_counter_per_episode >= self.max_steps-1:
-            print('ACHTUNG : greater than maxstep!')
+            print('Episode Done!')
             self.terminated = 4
             self.r_termination = -50
             return True
@@ -574,43 +543,33 @@ class NeobotixSchunkGymEnv(gym.Env):
         dline = self.calculate_point2line(self.ee_position, self.init_ee, self.init_goal)
         delta_dis = self.dis_ee - self.dis_vor
         self.dis_vor = self.dis_ee
+        if self.dis_ee_init:
+            tau = self.dis_ee/self.dis_ee_init
+            tau = tau**2#np.cbrt(tau)
 
-        tau = self.dis_ee/self.dis_ee_init
-        tau = tau**2#np.cbrt(tau)
-        #ree = self.r_func.reward_divid(0)
-        ree = -self.dis_ee + np.exp(-100*self.dis_ee**2)
+        ree = -1.5*self.dis_ee + np.exp(-10*self.dis_ee**2)
         rbase = -self.dis_base**2
         rline = ree-dline**2
 
-        if self.dis_base < 0.3:
-            rp = ree
-        else:
-            if tau < 1:
-                rp = (1 - tau) * ree + tau * rbase
-                rp = 10*rp
-            else:
-                rp = rbase
-                rp = 20*rp
-
         if self.reward_type == 'rdense':
             # noise = AdaptiveParamNoiseSpec(mu=0, sigma=0.1)
-            reward = 100*ree + self.r_termination + 80*self.r_penalty_collision #- 40*self.u**2 - 10*(self.step_counter_per_episode/self.max_steps)**2
-            if self.with_prioritized_reward:
-                reward = 100 * rp + self.r_termination + 50 * self.r_penalty_collision - 40 * self.u ** 2 - 10 * (self.step_counter_per_episode / self.max_steps) ** 2
+            reward = ree #+ self.r_termination  + 80*self.r_penalty_collision - 40*self.u**2 - 10*(self.step_counter_per_episode/self.max_steps)**2
             if self.if_goal_moving_type == 'line':
                 # dline_of_line^2 = dee^2 - dline^2, dline^2 = dz^2 + dy^2
                 dis_line2 = self.dis_ee**2-((self.ee_position[2]-self.goal.goal_position[2])**2+(self.ee_position[1]-self.goal.goal_position[1])**2)
-                reward = 100 * ree + self.r_termination + 50 * self.r_penalty_collision - 40 * self.u ** 2 - 10 * (self.step_counter_per_episode / self.max_steps) ** 2
+                reward = ree  #+ self.r_termination + 50 * self.r_penalty_collision - 40 * self.u ** 2 - 10 * (self.step_counter_per_episode / self.max_steps) ** 2
             if self.if_goal_moving_type == 'circle':
                 dis_circle2 = self.dis_ee**2-(self.ee_position[2]-self.goal.goal_position[2])**2
-                reward = 100 * ree + self.r_termination + 50 * self.r_penalty_collision - 40 * self.u ** 2 - 10 * (self.step_counter_per_episode / self.max_steps) ** 2
+                reward = ree  #+ self.r_termination + 50 * self.r_penalty_collision - 40 * self.u ** 2 - 10 * (self.step_counter_per_episode / self.max_steps) ** 2
 
         elif self.reward_type == 'rsparse':
             if delta_dis > 0:
                 reward = 0
             else:
                 reward = 1
-        return reward/1000
+
+        self.disc_total_reward += reward * 0.998 ** self.update_step_counter
+        return reward#/1000
 
     def render(self, mode='rgb_array', close=False):
         if mode != "rgb_array":
@@ -623,7 +582,7 @@ class NeobotixSchunkGymEnv(gym.Env):
         self._pb.addUserDebugLine(self.former_ee_pos, self.ee_position, [0, 0, 1], 3)
         self._pb.addUserDebugLine(self.former_base_pos, self.base_position, [0, 1, 0], 3)
         if self.if_goal_moving_type is not 'static':
-            self._pb.addUserDebugLine(self.former_goal_pos, self.goal.goal_position, [1, 0, 0], 3)
+            self._pb.addUserDebugLine(self.former_goal_pos, self.goal.goal_position, [1, 0, 0], 2)
         view_matrix = self._pb.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos, distance=self.cam_dist, yaw=self.cam_yaw, pitch=self.cam_pitch, roll=0, upAxisIndex=2)
         proj_matrix = self._pb.computeProjectionMatrixFOV(fov=60, aspect=float(RENDER_WIDTH) / RENDER_HEIGHT, nearVal=0.1, farVal=100.0)
 

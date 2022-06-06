@@ -101,7 +101,7 @@ if __name__ == '__main__':
     plt.show()
     '''
     # plt.savefig('/home/zheng/fromremote/results/diff_r.png')
-
+    """"
     data1 = pd.read_csv('/home/zheng/fromremote/results/prio/1divid.csv', delimiter=',',
                         names=['total', 'Episode', 'Success Rate'])
     data2 = pd.read_csv('/home/zheng/fromremote/results/prio/1dividpri.csv', delimiter=',',
@@ -116,20 +116,25 @@ if __name__ == '__main__':
                         names=['total', 'Episode', 'Success Rate'])
     data7 = pd.read_csv('/home/zheng/PycharmProjects/spinningup/data/trpo_pendulum/trpo_pendulum_s0/progress.txt', sep='\s+' )
     data8 = pd.read_csv('/home/zheng/PycharmProjects/spinningup/data/trpo_pendulum_rand/trpo_pendulum_rand_s0/progress.txt', sep='\s+' )
-    #print(data7)
-    fig, ax = plt.subplots()
-    sns.relplot(x='TotalEnvInteracts', y='AverageEpRet', kind="line", data=data7, color="r", ax=ax, lw=5)
-    sns.relplot(x='TotalEnvInteracts', y='AverageEpRet', kind="line", data=data8, color="g", ax=ax, lw=5)
+    """
+    data1 = pd.read_csv('/home/zzc/PycharmProjects/pybullet_neoschunk_reaching/logs/220208free111-1/td3/NeobotixSchunkBulletEnvReaching-v0_2/success_rate_20220211072151_free.csv', delimiter=',',
+                        names=['total', 'Episode', 'Success Rate', 'Episodess', 'Episodes', 'Success Rates', 'range'])
+    data2 = pd.read_csv('/home/zzc/PycharmProjects/pybullet_neoschunk_reaching/logs/220208free111-1c/td3/NeobotixSchunkBulletEnvReaching-v0_2/success_rate_20220210071702_free.csv', delimiter=',',
+                        names=['total', 'Episode', 'Success Rate', 'Episodess', 'Episodes', 'Success Rates', 'range'])
+    data3 = pd.read_csv('/home/zzc/PycharmProjects/pybullet_neoschunk_reaching/results/success_rate_20210914000447_freec3.csv', delimiter=',',
+                        names=['total', 'Episode', 'Success Rate', 'Episodess', 'Episodes', 'Success Rates'])
+
+    #plt.figure(1)
+    fig, ax = plt.subplots(1,1)
+    #plt.figure(figsize=(12, 8))
+    sns.lineplot(x='total', y='Success Rate', data=data1, color="r", ax=ax, lw=5)
+    sns.lineplot(x='total', y='Success Rate', data=data2, color="g", ax=ax, lw=5)
+    #sns.relplot(x='total', y='Success Rate', kind="line", data=data3, color="b", ax=ax, lw=5)
     #sns.relplot(x='Episode', y='Success Rate', kind="line", data=data3, color="b", ax=ax)
     #sns.relplot(x='Episode', y='Success Rate', kind="line", data=data4, color="k", ax=ax)
     #sns.relplot(x='Episode', y='Success Rate', kind="line", data=data5, color="c", ax=ax)
     #sns.relplot(x='Episode', y='Success Rate', kind="line", data=data6, color="m", ax=ax)
-    # g = sns.catplot(x="episode", y="sr", jitter=False,  data=datas)
-    # plt.plot(result[:,1], result[:,2])
     sns.set(font_scale=50)
-    #plotlegend = ['$r=1/d$', 'prioritized $r=1/d$']
-    #plotlegend = ['$r=ln(d)$', 'prioritized $r=ln(d)$']
-    #plotlegend = ['$r=e^{-d}$', 'prioritized $r=e^{-d}$']
     plotlegend = ['normal', 'noisy env']
     ax.legend(labels=plotlegend, loc='upper left', numpoints=1, fontsize=15)
     ax.tick_params(labelsize=50)
@@ -137,4 +142,7 @@ if __name__ == '__main__':
     ax.set_xlabel('TotalEnvInteracts', fontsize=50)
     ax.set_ylabel('AverageEpRet', fontsize=50)
     # ax.set_xlabel('xlabel', fontsize=10)
+
+    #plt.figure(4)
+    #sns.lineplot(data1['total'], data1['Success Rate'], data2['total'], data2['Success Rate'])
     plt.show()

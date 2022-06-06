@@ -59,18 +59,18 @@ if __name__ == '__main__':
     if args.exp_id > 0:
         log_path = os.path.join(folder, algo, '{}_{}'.format(env_id, args.exp_id))
     else:
-        log_path = os.path.join(folder, algo)"""
+        log_path = os.path.join(folder, algo)
+        """
     model_path = find_saved_model(algo, log_path, env_id)
 
     stats_path = os.path.join(log_path, env_id)
     hyperparams, stats_path = get_saved_hyperparams(stats_path)
 
-
     is_atari = 'NoFrameskip' in env_id
 
     env = create_test_env(env_id, n_envs=n_envs, is_atari=is_atari,
                           stats_path=stats_path, seed=seed, log_dir=None,
-                          should_render=not args.no_render, hyperparams=hyperparams)
+                          should_render=True, hyperparams=hyperparams)#not args.no_render
 
     model = ALGOS[algo].load(model_path)
 
@@ -88,6 +88,7 @@ if __name__ == '__main__':
         if isinstance(env.action_space, gym.spaces.Box):
             action = np.clip(action, env.action_space.low, env.action_space.high)
         obs, _, _, _ = env.step(action)
+        env.render()
 
     # Workaround for https://github.com/openai/gym/issues/893
     if n_envs == 1 and 'Bullet' not in env_id and not is_atari:

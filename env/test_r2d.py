@@ -29,21 +29,25 @@ if __name__ == '__main__':
     #plt.plot(x4, y7, x4, y10)
 
 
-    x6 = np.linspace(0.01, 4.5, 1000)
+    x6 = np.linspace(0.01, 1.5, 1000)
     z1 = -x6#1/x6 - 20*x6
     z2 = -x6**2#1/x6 - x6**3
     z3 = -np.exp(x6)#1/x6 - np.exp(x6)
     z4 = -np.log(x6/(x6+1))#-np.log(x6) - 20*x6
-    z5 = np.exp(-x6)#-np.log(x6) - x6**3
+    z5 = -1*x6+np.exp(-10*x6**2)#-np.log(x6) - x6**3
     z6 = 1/x6#-np.log(x6) - np.exp(x6)-x6+np.exp(-x6)
     z7 = z3+z4+z6
     plt.figure(1)
-    plt.plot(x, z1, x, z2, x, z3, x, z4, x, z5, x, z6, x, z7, linewidth=2)
+    plt.plot(x, z5, x, z5, x, z5, x, z5, x, z5, x, z5, x, z5, linewidth=2)
     plt.legend(['$r=-d$', '$r=-d^2$', '$r=-e^d$', '$r=-ln(d)$', '$r=e^{-d}$', '$r=1/d$', '$sum$'], loc='upper right', numpoints=1, fontsize=15)
     plt.xticks(fontsize=15)
     plt.yticks(fontsize=15)
-    plt.ylim(-50,50)
+    #plt.ylim(-50,50)
     plt.grid()
+
+    plt.figure(3)
+    plt.plot(x6, z5, linewidth=2)
+
     #plt.plot(x, y1, x, y2, x, y3, x, y4, x, y5, x, y6)
     #plt.plot(x2, y2, x3, y5, x1, y6, x4, y7, x5, y8, x3, y9)
     #plt.legend(['y=-log(x)', 'y=-3x+2.10', 'y=log(x)', 'y=1/x', 'y=-3x+3.46', 'y=-e^x+3.17'],loc='upper right', numpoints=1, fontsize=10)
@@ -60,8 +64,8 @@ if __name__ == '__main__':
     d4 = 1 - taux
     plt.figure(2)
     plt.plot(tau, d1, 'b-', tau, d2, 'r-', tau, d3, 'b-.', tau, d4, 'r-.', linewidth=2)
-    plt.legend(['$r_{bg}$ with $\\tau$', '$r_{eg}$ with $1-\\tau$', '$r_{bg}$ with $\sqrt[3]{\\tau}$', '$r_{eg}$ with $1-\sqrt[3]{\\tau}$'], loc='center right', numpoints=1, fontsize=15)
-    plt.xticks(fontsize=15)
-    plt.yticks(fontsize=15)
+    plt.legend(['$r_{bg}$ with $\\tau$', '$r_{eg}$ with $1-\\tau$', '$r_{bg}$ with $\sqrt[3]{\\tau}$', '$r_{eg}$ with $1-\sqrt[3]{\\tau}$'], loc='center right', numpoints=1, fontsize=30)
+    plt.xticks(fontsize=50)
+    plt.yticks(fontsize=50)
     plt.grid()
     plt.show()

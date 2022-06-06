@@ -1,17 +1,47 @@
 NeobotixSchunkBulletEnv-v0:
   env_wrapper: utils.wrappers.TimeFeatureWrapper
   normalize: true
-  n_envs: 1
-  n_timesteps: !!float 5e6
+  n_envs: 2
+  n_timesteps: !!float 5e7
   policy: 'MlpPolicy'
-  n_steps: 256
+  n_steps: 32
   nminibatches: 32
-  lam: 0.92
+  lam: 1.0
+  gamma: 0.9
+  noptepochs: 10
+  ent_coef: !!float 8e-6
+  learning_rate: !!float 1e-5
+  cliprange: 0.2
+
+NeobotixSchunkBulletEnvReaching-v0:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  normalize: true
+  n_envs: 1
+  n_timesteps: !!float 5e7
+  policy: 'CustomMlpPolicy'
+  n_steps: 256
+  nminibatches: 256
+  lam: 0.95
+  gamma: 0.99
+  noptepochs: 50
+  ent_coef: !!float 8e-6
+  learning_rate: !!float 5e-5
+  cliprange: 0.2
+
+NeobotixSchunkBulletEnvTracking-v0:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  normalize: true
+  n_envs: 1
+  n_timesteps: !!float 5e7
+  policy: 'MlpPolicy'
+  n_steps: 1024
+  nminibatches: 256
+  lam: 0.95
   gamma: 0.99
   noptepochs: 10
-  ent_coef: 0.02
-  learning_rate: 0.00005
-  cliprange: 0.1
+  ent_coef: 0.0
+  learning_rate: !!float 5e-5
+  cliprange: 0.2
 
 NeobotixSchunkLineBulletEnv-v0:
   #env_wrapper: utils.wrappers.TimeFeatureWrapper

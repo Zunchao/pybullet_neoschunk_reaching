@@ -22,12 +22,20 @@ class NeobotixSchunkObstacle:
         self.ws_boundary = ws_boundary
         self.np_random = rseed
         self.if_obstacle_moving = if_obstacle_moving
+        self._pb = p
         self.obstacle_position = np.ones(3)
         self.obstacle_linear_velocity = np.zeros(3)
         self.obstacle_angular_velocity = np.zeros(3)
         self.URDF_OBSTACLE = os.path.join(self.urdf_root, "pybullet_neoschunk_reaching/data/cylinder_verticle.urdf")  # unused
-        obstacle_id = p.createCollisionShape(shapeType=p.GEOM_CYLINDER, radius=OBSTACLE_RADIUS, height=OBSTACLE_HEIGHT)
-        self.obstacle_uid = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=obstacle_id, basePosition=self.obstacle_position)
+        obstacle_id = self._pb.createCollisionShape(shapeType=self._pb.GEOM_CYLINDER, radius=OBSTACLE_RADIUS, height=OBSTACLE_HEIGHT)
+        #self.obstacle_uid = self._pb.createMultiBody(baseMass=0, baseCollisionShapeIndex=obstacle_id, basePosition=self.obstacle_position)
+        #self.obstacle_uid = self._pb.loadURDF(self.URDF_OBSTACLE, self.obstacle_position, useFixedBase=True)
+        obs_idc = self._pb.createCollisionShape(shapeType=self._pb.GEOM_SPHERE, radius=0.15)
+        obs_idv = self._pb.createVisualShape(shapeType=self._pb.GEOM_SPHERE, radius=0.15, rgbaColor=[0.0, 0.0, 1, 1])
+        self.obstacle_uid = self._pb.createMultiBody(baseMass=0, baseCollisionShapeIndex=obs_idc,
+                                                      baseVisualShapeIndex=obs_idv,
+                                                      basePosition=[0, 0, 1])
+
         self.resetObstacle()
 
     def resetObstacle(self):
@@ -46,7 +54,7 @@ class NeobotixSchunkObstacle:
             [self.np_random.uniform(-self.ws_boundary, self.ws_boundary),
              self.np_random.uniform(-self.ws_boundary, self.ws_boundary),
              OBSTACLE_HEIGHT/2])
-        p.resetBasePositionAndOrientation(self.obstacle_uid, self.obstacle_position, np.array([0, 0, 0, 1]))
+        self._pb.resetBasePositionAndOrientation(self.obstacle_uid, self.obstacle_position, np.array([0, 0, 0, 1]))
 
     def setObstacleState(self):
         """
@@ -54,15 +62,14 @@ class NeobotixSchunkObstacle:
         :return:
         """
         if self.if_obstacle_moving:
-            #v = p.getBaseVelocity(self.obstacle_uid)
+            #v = self._pb.getBaseVelocity(self.obstacle_uid)
             #self.obstacle_linear_velocity[0:2] = np.array(v[0][0:2])
             #self.obstacle_linear_velocity[2] = v[1][2]
             self.obstacle_linear_velocity += np.array([self.np_random.uniform(-0.5, 0.5), self.np_random.uniform(-0.5, 0.5), 0])
             self.obstacle_linear_velocity = np.clip(self.obstacle_linear_velocity, -np.array(OBS_VEL_LIMITS), np.array(OBS_VEL_LIMITS))
-            p.resetBaseVelocity(objectUniqueId=self.obstacle_uid,
+            self._pb.resetBaseVelocity(objectUniqueId=self.obstacle_uid,
                                 linearVelocity=self.obstacle_linear_velocity,
                                 angularVelocity=self.obstacle_angular_velocity)
-
 
     def getObstacleState(self):
         """
@@ -70,8 +77,8 @@ class NeobotixSchunkObstacle:
         :return:
         """
         if self.if_obstacle_moving:
-            obsvel = p.getBaseVelocity(self.obstacle_uid)
+            obsvel = self._pb.getBaseVelocity(self.obstacle_uid)
             self.obstacle_linear_velocity = np.array(obsvel[0])
-            obspos, obsorn = p.getBasePositionAndOrientation(self.obstacle_uid)
+            obspos, obsorn = self._pb.getBasePositionAndOrientation(self.obstacle_uid)
             self.obstacle_position = np.array(obspos)
 

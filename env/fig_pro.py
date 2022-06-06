@@ -12,13 +12,16 @@ ddbase=[]
 ts = []
 discount = 0.995
 
-N=300
+N=200
 return1=[]
 return2=[]
 return3=[]
 return4=[]
 return5=[]
 successr = 0#*d0
+
+SIZE=30
+
 def intd(t):
     if t<500:
         d0 = np.random.uniform(1, 1)
@@ -35,11 +38,11 @@ d0 = intd(N)
 def penalty(t, de):
     #d0 = intd(t)
     # de = np.random.uniform(0, (1-t/1500)*2+0.1)
-    dm = de + np.random.uniform(-0.2, 0.2)#0.5#
+    dm = de + np.random.uniform(-0.1, 0.1)#0.1#
     return np.abs(dm)
 
 def dee(t):
-    de = (1-t/N)*d0 + np.random.uniform(-0.2, 0.2)
+    de = (1-t/N)*d0 + np.random.uniform(-0.1, 0.1)
     return de
 
 def test_if(a):
@@ -52,25 +55,25 @@ def test_if(a):
     return False
 
 def normalfun(d):
-    d = -d#np.log(d)
+    d = -d**1#np.log(d)#1/d#
     return d
 
 def plotreturn(r1, r2, r3):
     for t in range(N):
         de = dee(t)
         dm = penalty(t, de)
-        if de<0.1:
-            de=0.1
+        if de<0.01:
+            de=0.01
 
         # print(de,dm,p)
         tau = de/d0
-        tau = tau**1#np.cbrt(tau)#
+        tau = np.cbrt(tau)#tau**1#
 
-        if np.abs(dm) < 0.1:
+        if np.abs(dm) < 0.01:
             rt2 = normalfun(de)
         else:
             if tau < 1:
-                rt2 = (1-tau)*normalfun(de)+2*tau*normalfun(dm)
+                rt2 = (1-tau)*normalfun(de)+tau*normalfun(dm)
                 rt2 = 1*rt2
             else:
                 rt2 = 1*normalfun(dm)
@@ -111,18 +114,19 @@ def plotreturn(r1, r2, r3):
 if __name__ == '__main__':
     plotreturn(0, 0, 0)
     fig, ax = plt.subplots()
-    plt.plot(ree, 'b-', rbase, 'g-', returns, 'r-', lw=2)
-    plt.legend(['$r_{arm}$', '$r_{base}$', '$r_{pri}$'], loc='upper left', numpoints=1, fontsize=15)
-    plt.xticks(fontsize=15)
-    plt.yticks(fontsize=15)
-    ax.tick_params(labelsize=15)
+    plt.plot(ree, 'b-', rbase, 'g-', returns, 'r-', lw=3)
+    plt.legend(['$r_{arm}$', '$r_{base}$', '$r_{pri}$'], loc='lower right', numpoints=1, fontsize=SIZE)
+    plt.xticks(fontsize=SIZE)
+    plt.yticks(fontsize=SIZE)
+    ax.tick_params(labelsize=SIZE)
     plt.grid()
 
     plt.figure(2)
-    plt.plot(ddee, 'b-', ddbase, 'g-', lw=2)
-    plt.legend(['$r_{pri}-r_{arm}$', '$r_{pri}-r_{base}$'], loc='lower left', numpoints=1, fontsize=15)
-    plt.xticks(fontsize=15)
-    plt.yticks(fontsize=15)
+    plt.plot(ddee, 'b-', ddbase, 'g-', lw=3)
+    plt.legend(['$r_{pri}-r_{arm}$', '$r_{pri}-r_{base}$'], loc='upper right', numpoints=1, fontsize=SIZE)
+    plt.xticks(fontsize=SIZE)
+    plt.yticks(fontsize=SIZE)
+    ax.tick_params(labelsize=SIZE)
     plt.grid()
     #plt.figure(3)
     #plt.plot(return3, 'r', return4, 'b', return5, 'k')
