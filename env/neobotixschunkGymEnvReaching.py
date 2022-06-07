@@ -411,15 +411,12 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             # remove states : ee orn(3,4,5), ee vel(6,7,8,9,10,11), base vel(18,19,20,21,22,23), joint vels 7(31,32,33,34,35,36,37)
             # remove 0, 1, or static elements : base orn xy(15,16), relative base obs z(49), relative collision z(52)
             rm_indices = [3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 21, 22, 23, 31, 32, 33, 34, 35, 36, 37, 44, 45, 46, 47, 48, 49]
-        self.observation = np.delete(observation, rm_indices)
-        # self.observation = observation
-        print("obs1 ", self.observation)
-        nobs = np.linalg.norm(self.observation)
+        simple_observation = np.delete(observation, rm_indices)
+        # self.observation = simple_observation
+        nobs = np.linalg.norm(simple_observation)
         if nobs == 0:
             nobs += 1e-16
-        self.observation = self.observation / nobs
-
-        print("obs2 ", self.observation)
+        self.observation = simple_observation / nobs
         return self.observation
 
     def step(self, input_action):
@@ -526,6 +523,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             if self.if_obstacle:
                 self.obstacle.setObstacleState()
             self.robot.applyAction(action_scaled)
+            self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_SINGLE_STEP_RENDERING)
             self.pb.stepSimulation()
             done = self.__termination()
             if done:
