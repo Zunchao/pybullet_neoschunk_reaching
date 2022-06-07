@@ -109,7 +109,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.sound_reaching_number = 1
         self.seed_number = 0
         self.np_random = None
-        self.pb = pb
         self.former_ee_pos = []
         self.former_base_pos = []
         self.init_ee = []
@@ -149,18 +148,18 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         gym.logger.set_level(40)
 
         if self.if_rendering:
-            cid = self.pb.connect(self.pb.SHARED_MEMORY)
+            cid = pb.connect(pb.SHARED_MEMORY)
             if cid < 0:
-                cid = self.pb.connect(self.pb.GUI)
-            #self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_RENDERING, 0)
-            #self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_GUI, 0)
+                cid = pb.connect(pb.GUI)
+            #pb.configureDebugVisualizer(pb.COV_ENABLE_RENDERING, 0)
+            #pb.configureDebugVisualizer(pb.COV_ENABLE_GUI, 0)
             # disable tinyrenderer, software (CPU) renderer, we don't use it here
-            #self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_TINY_RENDERER, 0)
-            #self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
-            #self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_GUI, 1)
-            self.pb.resetDebugVisualizerCamera(self.cam_dist, self.cam_yaw, self.cam_pitch, [0.0, -0.5, -0.0])
+            #pb.configureDebugVisualizer(pb.COV_ENABLE_TINY_RENDERER, 0)
+            #pb.configureDebugVisualizer(pb.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
+            #pb.configureDebugVisualizer(pb.COV_ENABLE_GUI, 1)
+            pb.resetDebugVisualizerCamera(self.cam_dist, self.cam_yaw, self.cam_pitch, [0.0, -0.5, -0.0])
         else:
-            self.pb.connect(self.pb.DIRECT)
+            pb.connect(pb.DIRECT)
 
         self.seed_number = self.seed()
         self.__set_data_csv_path()
@@ -226,22 +225,22 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         :return:
         """
         self.__reset_params()
-        self.pb.resetSimulation()
-        self.pb.setPhysicsEngineParameter(numSolverIterations=200, enableFileCaching=0)
-        self.pb.setPhysicsEngineParameter(solverResidualThreshold=1e-30)
-        self.pb.setTimeStep(self.time_step)
-        self.pb.setGravity(0, 0, -9.81)
-        self.pb.setRealTimeSimulation(False)
+        pb.resetSimulation()
+        pb.setPhysicsEngineParameter(numSolverIterations=200, enableFileCaching=0)
+        pb.setPhysicsEngineParameter(solverResidualThreshold=1e-30)
+        pb.setTimeStep(self.time_step)
+        pb.setGravity(0, 0, -9.81)
+        pb.setRealTimeSimulation(False)
 
         #video_path = os.path.join(self.urdf_root,'pybullet_neoschunk_reaching/results/videos/video_'+str(self.episode_counter)+'.mp4')
         #open(video_path, 'a')
-        #self.logvideo = self.pb.startStateLogging(self.pb.STATE_LOGGING_VIDEO_MP4, video_path)
+        #self.logvideo = pb.startStateLogging(pb.STATE_LOGGING_VIDEO_MP4, video_path)
         if self.if_rendering:
-            #self.path_point_base = self.pb.createVisualShape(shapeType=self.pb.GEOM_SPHERE, radius=PATH_POINT_RADIUS, rgbaColor=[0, 0, 1, 0.9])
-            #self.path_point_ee = self.pb.createVisualShape(shapeType=self.pb.GEOM_SPHERE, radius=PATH_POINT_RADIUS, rgbaColor=[1, 0, 0, 0.9])
+            #self.path_point_base = pb.createVisualShape(shapeType=pb.GEOM_SPHERE, radius=PATH_POINT_RADIUS, rgbaColor=[0, 0, 1, 0.9])
+            #self.path_point_ee = pb.createVisualShape(shapeType=pb.GEOM_SPHERE, radius=PATH_POINT_RADIUS, rgbaColor=[1, 0, 0, 0.9])
             time.sleep(self.time_step)
 
-        self.ground_uid = self.pb.loadURDF(self.urdf_ground, [0, 0, -0.001], useFixedBase=True, flags=self.pb.URDF_ENABLE_SLEEPING)
+        self.ground_uid = pb.loadURDF(self.urdf_ground, [0, 0, -0.001], useFixedBase=True, flags=pb.URDF_ENABLE_SLEEPING)
 
         self.robot = neobotixschunk.NeobotixSchunk(urdf_root_path=self.urdf_root, ws_boundary=self.ws_boundary, rseed=self.np_random)
         if self.if_random_init:
@@ -277,8 +276,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                     self.obstacle.resetObstacle()
             else:
                 break
-        self.pb.stepSimulation()
-        self.observation = self.__get_observation()
+        pb.stepSimulation()
+        self.__get_observation()
         #self.goal.goal_position = self.ee_position
         #self.goal.resetGoal()
         self.former_ee_pos = self.ee_position
@@ -343,7 +342,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         return d
 
     def close(self):
-        self.pb.disconnect()
+        pb.disconnect()
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -523,13 +522,13 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             if self.if_obstacle:
                 self.obstacle.setObstacleState()
             self.robot.applyAction(action_scaled)
-            self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_SINGLE_STEP_RENDERING)
-            self.pb.stepSimulation()
+            pb.configureDebugVisualizer(pb.COV_ENABLE_SINGLE_STEP_RENDERING)
+            pb.stepSimulation()
             done = self.__termination()
             if done:
                 self.episode_counter += 1
                 self.update_step_counter += 1
-                #self.pb.stopStateLogging(self.logvideo)
+                #pb.stopStateLogging(self.logvideo)
                 break
             self.step_counter_per_episode += 1
         if self.terminated == 1:
@@ -539,8 +538,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                  action_scaled[4], action_scaled[5], action_scaled[6]])
 
         if self.if_rendering:
-            #self.pb.createMultiBody(baseMass=0, basePosition=self.ee_position, baseVisualShapeIndex=self.path_point_ee)
-            #self.pb.createMultiBody(baseMass=0, basePosition=self.base_position, baseVisualShapeIndex=self.path_point_base)
+            #pb.createMultiBody(baseMass=0, basePosition=self.ee_position, baseVisualShapeIndex=self.path_point_ee)
+            #pb.createMultiBody(baseMass=0, basePosition=self.base_position, baseVisualShapeIndex=self.path_point_base)
             time.sleep(self.time_step)
         #print(self.dis_collision, self.collision_relative_position)
         self.input_u = np.linalg.norm(action_scaled)
@@ -548,18 +547,19 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         #print("action old : ", self.actions, action_scaled, self.actions[0:7]-action_scaled[0:7], self.dis_action)
         self.actions = action_scaled
         reward = self.__reward()
+        self.__get_observation()
         return self.observation, reward, done, {}
 
     def __check_collision_wall(self):
         if_wall_collide = 0
         if self.if_scenario:
-            closest_points1 = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid1, COLLISION_THRESHOLD/25)
-            closest_points2 = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid2, COLLISION_THRESHOLD/25)
-            closest_points3 = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid3, COLLISION_THRESHOLD/25)
-            closest_points4 = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid4, COLLISION_THRESHOLD/25)
-            closest_points5 = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid5, COLLISION_THRESHOLD/25)
-            closest_points6 = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid6, COLLISION_THRESHOLD/25)
-            closest_points7 = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid7, COLLISION_THRESHOLD/25)
+            closest_points1 = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid1, COLLISION_THRESHOLD/25)
+            closest_points2 = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid2, COLLISION_THRESHOLD/25)
+            closest_points3 = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid3, COLLISION_THRESHOLD/25)
+            closest_points4 = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid4, COLLISION_THRESHOLD/25)
+            closest_points5 = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid5, COLLISION_THRESHOLD/25)
+            closest_points6 = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid6, COLLISION_THRESHOLD/25)
+            closest_points7 = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.scenario.scenario_uid7, COLLISION_THRESHOLD/25)
             if_wall_collide = len(closest_points1)+len(closest_points2)+len(closest_points3)+len(closest_points4)+len(closest_points5)+len(closest_points6)+len(closest_points7)
         #print(if_wall_collide)
         if if_wall_collide:
@@ -575,7 +575,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         closest_distances = []
 
         if self.if_obstacle:
-            closest_points = self.pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.obstacle.obstacle_uid, COLLISION_THRESHOLD)
+            closest_points = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.obstacle.obstacle_uid, COLLISION_THRESHOLD)
         self.flag_collide = len(closest_points)
         if self.flag_collide:
             for i in range(self.flag_collide):
@@ -589,7 +589,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         return False
 
     def __termination(self):
-        self.observation = self.__get_observation()
+        self.__get_observation()
         if self.if_obstacle:
             self.r_function = reachingRewards.ReachingReward(with_priority=self.if_prioritized, goal=self.goal.goal_position, armpos=self.ee_position, basepos=self.base_position, opos=self.obstacle.obstacle_position)
         '''
@@ -739,22 +739,22 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
     def render(self, mode='rgb_array', close=False):
         if mode != "rgb_array":
             return np.array([])
-        base_pos, orn = self.pb.getBasePositionAndOrientation(self.robot.neobotix_schunk_uid)
+        base_pos, orn = pb.getBasePositionAndOrientation(self.robot.neobotix_schunk_uid)
         #text_goal = 'goal position : (' + str(round(self.goal_position[0], 4)) + ', ' + str(round(self.goal_position[1], 4)) + ', ' + str(round(self.goal_position[2], 4)) + ')'
         #text_ee = 'ee position : (' + str(round(self.ee_position[0], 4)) + ', ' + str(round(self.ee_position[1], 4)) + ', ' + str(round(self.ee_position[2], 4)) + ')'
-        #self.pb.addUserDebugText(text_goal, [-3, -1, 3.4], textSize=1.5)
-        #self.pb.addUserDebugText(text_ee, [-3, -1, 3], textSize=1.5, lifeTime=0.5)
-        self.pb.addUserDebugLine(self.former_ee_pos, self.ee_position, [1, 0, 1], 3)
-        self.pb.addUserDebugLine(self.former_base_pos, self.base_position, [0, 0, 0], 3)
+        #pb.addUserDebugText(text_goal, [-3, -1, 3.4], textSize=1.5)
+        #pb.addUserDebugText(text_ee, [-3, -1, 3], textSize=1.5, lifeTime=0.5)
+        pb.addUserDebugLine(self.former_ee_pos, self.ee_position, [1, 0, 1], 3)
+        pb.addUserDebugLine(self.former_base_pos, self.base_position, [0, 0, 0], 3)
         if self.if_goal_moving_type is not 'static':
-            self.pb.addUserDebugLine(self.former_goal_pos, self.goal.goal_position, [1, 0, 0], 3)
-        view_matrix = self.pb.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos, distance=self.cam_dist, yaw=self.cam_yaw, pitch=self.cam_pitch, roll=0, upAxisIndex=2)
-        proj_matrix = self.pb.computeProjectionMatrixFOV(fov=60, aspect=float(RENDER_WIDTH) / RENDER_HEIGHT, nearVal=0.1, farVal=100.0)
+            pb.addUserDebugLine(self.former_goal_pos, self.goal.goal_position, [1, 0, 0], 3)
+        view_matrix = pb.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos, distance=self.cam_dist, yaw=self.cam_yaw, pitch=self.cam_pitch, roll=0, upAxisIndex=2)
+        proj_matrix = pb.computeProjectionMatrixFOV(fov=60, aspect=float(RENDER_WIDTH) / RENDER_HEIGHT, nearVal=0.1, farVal=100.0)
 
-        (_, _, px, _, _) = self.pb.getCameraImage(width=RENDER_WIDTH, height=RENDER_HEIGHT, viewMatrix=view_matrix, projectionMatrix=proj_matrix, renderer=self.pb.ER_BULLET_HARDWARE_OPENGL)
-        #renderer=self.pb.ER_TINY_RENDERER
-        #self.pb.ER_BULLET_HARDWARE_OPENGL
-        #self.pb.configureDebugVisualizer(self.pb.COV_ENABLE_RENDERING, 1)
+        (_, _, px, _, _) = pb.getCameraImage(width=RENDER_WIDTH, height=RENDER_HEIGHT, viewMatrix=view_matrix, projectionMatrix=proj_matrix, renderer=pb.ER_BULLET_HARDWARE_OPENGL)
+        #renderer=pb.ER_TINY_RENDERER
+        #pb.ER_BULLET_HARDWARE_OPENGL
+        #pb.configureDebugVisualizer(pb.COV_ENABLE_RENDERING, 1)
         rgb_array = np.array(px, dtype=np.uint8)
         rgb_array = np.reshape(rgb_array, (RENDER_HEIGHT, RENDER_WIDTH, 4))
         rgb_array = rgb_array[:, :, :3]
@@ -791,16 +791,16 @@ if __name__ == "__main__":
     dv = 1
     actionIds = []
     dvalue = 0
-    actionIds.append(environment.pb.addUserDebugParameter("arm_1_joint", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("arm_2_joint", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("arm_3_joint", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("arm_4_joint", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("arm_5_joint", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("arm_6_joint", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("arm_7_joint", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("basevelocityx", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("basevelocityy", -dv, dv, dvalue))
-    actionIds.append(environment.pb.addUserDebugParameter("baseangularvelocity", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("arm_1_joint", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("arm_2_joint", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("arm_3_joint", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("arm_4_joint", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("arm_5_joint", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("arm_6_joint", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("arm_7_joint", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("basevelocityx", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("basevelocityy", -dv, dv, dvalue))
+    actionIds.append(pb.addUserDebugParameter("baseangularvelocity", -dv, dv, dvalue))
 
     done = 0
     n_steps = 1000
@@ -812,7 +812,7 @@ if __name__ == "__main__":
         for i in range(n_steps):
             action = []
             for actionId in actionIds:
-                action.append(environment.pb.readUserDebugParameter(actionId))
+                action.append(pb.readUserDebugParameter(actionId))
             action = environment.action_space.sample()
             state, reward, done, info = environment.step(action)
             print('len', i, len(state), state, info, reward)
