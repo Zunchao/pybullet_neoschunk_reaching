@@ -165,9 +165,10 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.__set_data_csv_path()
         if self.if_obstacle_moving:
             self.if_obstacle = True
+
         self.reset()
 
-        self.observation_dim = len(self.__get_observation())
+        self.observation_dim = len(self.observation)
         observation_high = np.array([largeValObservation] * self.observation_dim)
 
         action_boundary = 1.0
@@ -356,61 +357,43 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         observation = self.robot.getObservation()
         self.goal.getGoalState()
         self.ee_position = observation[0:3]
-        self.base_position = observation[12:15]
+        self.base_position = observation[16:19]
         relative_pos_ee = np.subtract(self.goal.goal_position, self.ee_position)
-        observation[0:3] = relative_pos_ee
-        #print("rela ee pos ", relative_pos_ee, observation[0:3], self.goal.goal_position)
         relative_pos_base = np.subtract(self.goal.goal_position, self.base_position)
-        observation[12:15] = relative_pos_base
-        observation[14] = 0
         self.dis_ee = np.linalg.norm(relative_pos_ee)
         self.dis_base = np.linalg.norm(relative_pos_base[0:2])
-        #if self.dis_base > 0.3:
-            #observation[0:3] = np.zeros(3)
 
-        ee_vell = observation[6:9]
-        ee_vela = observation[9:12]
-        base_vell = observation[18:21]
-        base_vela = observation[21:24]
-        #if self.if_goal_moving_type is 'static':
-            #ee_vell = [0, 0, 0]
-            #base_vell = [0, 0, 0]
-        if self.if_goal_moving_type is not 'static':
-            relative_vell_goal_ee = np.subtract(self.goal.goal_linear_velocity, ee_vell)
-            relative_vela_goal_ee = np.subtract(self.goal.goal_angular_velocity, ee_vela)
-            relative_vell_goal_base = np.subtract(self.goal.goal_linear_velocity, base_vell)
-            relative_vela_goal_base = np.subtract(self.goal.goal_angular_velocity, base_vela)
-        else:
-            relative_vell_goal_ee = np.zeros(3)
-            relative_vela_goal_ee = np.zeros(3)
-            relative_vell_goal_base = np.zeros(3)
-            relative_vela_goal_base = np.zeros(3)
+        ee_vell = observation[10:13]
+        ee_vela = observation[13:16]
+        base_vell = observation[26:29]
+        base_vela = observation[29:32]
+        relative_vell_goal_ee = np.subtract(ee_vell, self.goal.goal_linear_velocity)
+        relative_vela_goal_ee = np.subtract(ee_vela, self.goal.goal_angular_velocity)
+        relative_vell_goal_base = np.subtract(base_vell, self.goal.goal_linear_velocity)
+        relative_vela_goal_base = np.subtract(base_vela, self.goal.goal_angular_velocity)
 
-        observation[6:9] = relative_vell_goal_ee
-        observation[9:12] = relative_vela_goal_ee
-        observation[18:21] = relative_vell_goal_base
-        observation[21:24] = relative_vela_goal_base
-
-        #self.collision_relative_position = np.ones(3)
-        self.collision_relative_position = np.zeros(3)
         # add dims for goal relative obs and base pos 3, relative collisions 3
-        observation.extend(np.zeros(9))  # 44,45,46,47,48,49,50,51,52
+        observation.extend(np.zeros(6))  # 56,57,58,59,60,61
+
+        observation_mod = observation
+        observation_mod[0:3] = relative_pos_ee
+        observation_mod[16:19] = relative_pos_base
+        observation_mod[18] = 0
+        observation_mod[10:13] = relative_vell_goal_ee
+        observation_mod[13:16] = relative_vela_goal_ee
+        observation_mod[26:29] = relative_vell_goal_base
+        observation_mod[29:32] = relative_vela_goal_base
+
         if self.if_obstacle:
             self.obstacle.getObstacleState()
-            observation[-9:-6] = np.subtract(self.obstacle.obstacle_linear_velocity, base_vell)  # 44,45,46
-            observation[-6:-3] = np.subtract(self.obstacle.obstacle_position, self.base_position)  # 47,48,49
-            observation[-3:] = self.collision_relative_position  # 50,51,52
-        observation = np.array(observation)
+            self.__check_collision_obstacle()
+            observation_mod[-6:-3] = np.subtract(self.obstacle.obstacle_linear_velocity, base_vell)  # 56,57,58
+            observation_mod[-3:] = self.collision_relative_position  # 59,60,61
+        observation_array = np.array(observation_mod)
         # observation = self.np_random.normal(observation, 0.001, size=len(observation))
-        if self.if_goal_moving_type is not 'static':
-            # remove states : ee orn(3,4,5), ee vel(6,7,8,9,10,11), base vel(18,19,20,21,22,23), joint vels 7(31,32,33,34,35,36,37)
-            # remove 0, 1, or static elements : base orn xy(15,16,17), obs v(44,45,46), relative base obs z(49), relative collision z(52)
-            rm_indices = [3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 21, 22, 23, 31, 32, 33, 34, 35, 36, 37, 44, 45, 46, 47, 48, 49]
-        else:
-            # remove states : ee orn(3,4,5), ee vel(6,7,8,9,10,11), base vel(18,19,20,21,22,23), joint vels 7(31,32,33,34,35,36,37)
-            # remove 0, 1, or static elements : base orn xy(15,16), relative base obs z(49), relative collision z(52)
-            rm_indices = [3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 21, 22, 23, 31, 32, 33, 34, 35, 36, 37, 44, 45, 46, 47, 48, 49]
-        simple_observation = np.delete(observation, rm_indices)
+        # remove states : ee vel(10,11,12,13,14,15), joint vels 7(39,40,41,42,43,44,45)
+        rm_indices = [10, 11, 12, 13, 14, 15, 39, 40, 41, 42, 43, 44, 45]
+        simple_observation = np.delete(observation_array, rm_indices)
         # self.observation = simple_observation
         nobs = np.linalg.norm(simple_observation)
         if nobs == 0:
@@ -589,7 +572,23 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         return False
 
     def __termination(self):
+
+        if self.__check_collision_obstacle():
+            # force, d_force = self.calculateField.compute_sum_force()
+            self.observation[-3:] = self.collision_relative_position#[0:2]
+            if self.dis_collision > COLLISION_THRESHOLD:
+                self.r_penalty_collision = -1/self.dis_collision**2#np.log(COLLISION_THRESHOLD)#-1
+            elif self.dis_collision > 0.1:
+                self.r_penalty_collision = -1/self.dis_collision**2#np.log(self.dis_collision)#-np.log(self.dis_collision)/np.log(COLLISION_THRESHOLD)
+            else:
+                self.r_penalty_collision = -1/self.dis_collision**2#np.log(0.1)#-np.log(0.1)/np.log(COLLISION_THRESHOLD)
+                self.r_termination = -10000
+                self.terminated = 2
+                print('ACHTUNG : collision with obs!')
+                return True
+
         self.__get_observation()
+
         if self.if_obstacle:
             self.r_function = reachingRewards.ReachingReward(with_priority=self.if_prioritized, goal=self.goal.goal_position, armpos=self.ee_position, basepos=self.base_position, opos=self.obstacle.obstacle_position)
         '''
@@ -605,19 +604,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             print('ACHTUNG : collision with walls!')
             return True
 
-        if self.__check_collision_obstacle():
-            # force, d_force = self.calculateField.compute_sum_force()
-            self.observation[-3:] = self.collision_relative_position#[0:2]
-            if self.dis_collision > COLLISION_THRESHOLD:
-                self.r_penalty_collision = -1/self.dis_collision**2#np.log(COLLISION_THRESHOLD)#-1
-            elif self.dis_collision > 0.1:
-                self.r_penalty_collision = -1/self.dis_collision**2#np.log(self.dis_collision)#-np.log(self.dis_collision)/np.log(COLLISION_THRESHOLD)
-            else:
-                self.r_penalty_collision = -1/self.dis_collision**2#np.log(0.1)#-np.log(0.1)/np.log(COLLISION_THRESHOLD)
-                self.r_termination = -10000
-                self.terminated = 2
-                print('ACHTUNG : collision with obs!')
-                return True
 
         if self.robot.check_collision_self():
             self.terminated = 3
@@ -736,7 +722,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         #reward = reward + self.base_position[1]
         return reward
 
-    def render(self, mode='rgb_array', close=False):
+    def render(self, mode='human', close=False):
         if mode != "rgb_array":
             return np.array([])
         base_pos, orn = pb.getBasePositionAndOrientation(self.robot.neobotix_schunk_uid)
@@ -776,13 +762,13 @@ if __name__ == "__main__":
                                                renders=True,
                                                is_discrete=False,
                                                action_repeat=1,
-                                               max_steps=200,
+                                               max_steps=50,
                                                action_dim=10,
                                                ws_boundary=1,
                                                random_initial=False,
                                                if_prioritized=False,
-                                               if_obstacle=False,
-                                               if_obstacle_moving=False,
+                                               if_obstacle=True,
+                                               if_obstacle_moving=True,
                                                if_goal_moving_type='static',
                                                if_scenario=False)
     check_env(environment)
@@ -803,7 +789,7 @@ if __name__ == "__main__":
     actionIds.append(pb.addUserDebugParameter("baseangularvelocity", -dv, dv, dvalue))
 
     done = 0
-    n_steps = 1000
+    n_steps = 100000
 
     while not False:
         environment.reset()
@@ -813,9 +799,9 @@ if __name__ == "__main__":
             action = []
             for actionId in actionIds:
                 action.append(pb.readUserDebugParameter(actionId))
-            action = environment.action_space.sample()
+            #action = environment.action_space.sample()
             state, reward, done, info = environment.step(action)
-            print('len', i, len(state), state, info, reward)
+            # print('len', i, len(state), state, info, reward)
             # state, reward, done, info = environment.step(environment._sample_action())
             # print('step', state, reward, done, info)
             # obs = environment.getExtendedObservation()

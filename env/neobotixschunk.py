@@ -234,11 +234,10 @@ class NeobotixSchunk:
                                   self.np_random.uniform(-self.ws_range, self.ws_range),
                                   bpos[2]])
         initial_basea = np.array([0, 0, self.np_random.uniform(-np.pi, np.pi)])
-        initial_baseo = self.pb.getQuaternionFromEuler(initial_basea)
-        
-        self.pb.resetBasePositionAndOrientation(self.neobotix_schunk_uid, initial_basep, initial_baseo)
-        self.pb.resetBaseVelocity(self.neobotix_schunk_uid, np.zeros(3), np.zeros(3))    
+        initial_baseo = self.pb.getQuaternionFromEuler(initial_basea)        
+        self.pb.resetBasePositionAndOrientation(self.neobotix_schunk_uid, initial_basep, initial_baseo)        
         """
+        self.pb.resetBaseVelocity(self.neobotix_schunk_uid, np.zeros(3), np.zeros(3))
 
     def getActionDimension(self):
         return len(self.active_arm_index) + len(self.wheel_index)
@@ -259,56 +258,37 @@ class NeobotixSchunk:
             computeLinkVelocity=True,
             computeForwardKinematics=True,
         )
-        pos = ee_link_state[0]
-        orn = ee_link_state[1]
-        euler = self.pb.getEulerFromQuaternion(orn)
+        pos = ee_link_state[0]  # position x y z
+        quat = ee_link_state[1]  # quaternion x y z w
+        euler = self.pb.getEulerFromQuaternion(quat)  # euler r p y
         vell = ee_link_state[6]
         vela = ee_link_state[7]
         observation.extend(list(pos))  # 0,1,2
-        observation.extend(list(euler))  # 3,4,5
-        observation.extend(list(vell))  # 6,7,8
-        observation.extend(list(vela))  # 9,10,11
+        observation.extend(list(quat))  # 3,4,5,6
+        observation.extend(list(euler))  # 7,8,9
+        observation.extend(list(vell))  # 10,11,12
+        observation.extend(list(vela))  # 13,14,15
         # get base pose
-        basepos, baseorn = self.pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        baseeul = self.pb.getEulerFromQuaternion(baseorn)
-        observation.extend(list(basepos))  # 12,13,14
-        observation.extend(list(baseeul))  # 15,16,17
+        basepos, basequat = self.pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        baseeul = self.pb.getEulerFromQuaternion(basequat)
+        observation.extend(list(basepos))  # 16,17,18
+        observation.extend(list(basequat))  # 19,20,21,22
+        observation.extend(list(baseeul))  # 23,24,25
         # get base linear and angular vel
         basev = self.pb.getBaseVelocity(self.neobotix_schunk_uid)
-        observation.extend(list(basev[0]))  # 18,19,20
-        observation.extend(list(basev[1]))  # 21,22,23
-
+        observation.extend(list(basev[0]))  # 26,27,28
+        observation.extend(list(basev[1]))  # 29,30,31
         # get joint positions and velocities
         joint_s = self.pb.getJointStates(bodyUniqueId=self.neobotix_schunk_uid, jointIndices=self.active_arm_index)
         joints = [x[0] for x in joint_s]
         jointv = [x[1] for x in joint_s]
-        observation.extend(list(joints))  # 24,25,26,27,28,29,30
-        observation.extend(list(jointv))  # 31,32,33,34,35,36,37
-        """
-        bm_rotation = self.pb.getMatrixFromQuaternion(baseorn)
-        bm_transform = np.array([bm_rotation[0], bm_rotation[1], bm_rotation[2], basepos[0],
-                                 bm_rotation[3], bm_rotation[4], bm_rotation[5], basepos[1],
-                                 bm_rotation[6], bm_rotation[7], bm_rotation[8], basepos[2],
-                                 0, 0, 0, 1])
-        bm_transforms = bm_transform.reshape(4, 4)
-        bm_transform_inv = np.linalg.inv(bm_transforms)
-        #print('base position in world : ', basepos)
-        #print('base orientation in world : ', bm_rotation)
-        #print('transformation matrix from base to world : ', bm_transforms)
-        #print('inverse transformation matrix - from world to base: ', bm_transform_inv)
-        ee_world_pos_transform_invert,  ee_world_ori_transform_invert = self.pb.invertTransform(pos, orn)
-        
-        base_world_pos_transform_invert,  base_world_ori_transform_invert = self.pb.invertTransform(basepos, baseorn)
-        #print('invert transformation matrix - from world to base: ', self.pb.getMatrixFromQuaternion(self.pb.invertTransform(basepos, baseorn)[1]), self.pb.invertTransform(basepos, baseorn)[0])
-        ee_base_pos, ee_base_ori = self.pb.multiplyTransforms(base_world_pos_transform_invert,  base_world_ori_transform_invert, pos, orn)
-        #print('transform of ee in base frame : ', ee_base_pos, ee_base_ori, self.pb.getMatrixFromQuaternion(ee_base_ori), self.pb.getEulerFromQuaternion(ee_base_ori))
-        ee_base_ang = self.pb.getEulerFromQuaternion(ee_base_ori)
-        """
+        observation.extend(list(joints))  # 32,33,34,35,36,37,38
+        observation.extend(list(jointv))  # 39,40,41,42,43,44,45
         # get ee pose in base frame
-        ee_base_pos, ee_base_ang = self.calculate_in_base_frame(pos, orn)
-        # self.pb.getEulerFromQuaternion(ee_base_ori)
-        observation.extend(ee_base_pos)  # 38,39,40
-        observation.extend(ee_base_ang)  # 41,42,43
+        ee_base_pos, ee_base_quat, ee_base_euler = self.calculate_in_base_frame(pos, quat)
+        observation.extend(ee_base_pos)  # 46,47,48
+        observation.extend(ee_base_quat)  # 49,50,51,52
+        observation.extend(ee_base_euler)  # 53,54,55
         """
         for i in self.active_arm_index:
             links = self.pb.getLinkState(self.neobotix_schunk_uid, linkIndex=i)
@@ -358,20 +338,18 @@ class NeobotixSchunk:
         """
         return observation
 
-    def calculate_in_base_frame(self, pos, orn):
+    def calculate_in_base_frame(self, pos, quat):
         """
-        calculate a pose in base frame
+        calculate a pose in base frame : T(ee,base)=T(ee,world)*T(base,world).invert
         :param pos:
         :param orn:
         :return:
         """
-        basepos, baseorn = self.pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
-        base_world_pos_transform_invert, base_world_ori_transform_invert = self.pb.invertTransform(basepos, baseorn)
-        # print('invert transformation matrix - from world to base: ', self.pb.getMatrixFromQuaternion(self.pb.invertTransform(basepos, baseorn)[1]), self.pb.invertTransform(basepos, baseorn)[0])
-        in_base_pos, in_base_ori = self.pb.multiplyTransforms(base_world_pos_transform_invert, base_world_ori_transform_invert, pos, orn)
-        # print('transform of ee in base frame : ', ee_base_pos, ee_base_ori, self.pb.getMatrixFromQuaternion(ee_base_ori), self.pb.getEulerFromQuaternion(ee_base_ori))
-        in_base_ang = self.pb.getEulerFromQuaternion(in_base_ori)
-        return in_base_pos, in_base_ang
+        basepos, basequat = self.pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
+        base_world_pos_transform_invert, base_world_quat_transform_invert = self.pb.invertTransform(basepos, basequat)
+        in_base_pos, in_base_quat = self.pb.multiplyTransforms(pos, quat, base_world_pos_transform_invert, base_world_quat_transform_invert)
+        in_base_euler = self.pb.getEulerFromQuaternion(in_base_quat)
+        return in_base_pos, in_base_quat, in_base_euler
 
     def calculate_in_non_world_frame(self, i, pos, orn):
         """
