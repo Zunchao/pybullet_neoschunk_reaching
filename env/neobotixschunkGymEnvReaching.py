@@ -36,7 +36,7 @@ PARENT_DIR = os.path.dirname(os.path.dirname(CURRENT_DIR))
 os.sys.path.insert(0, PARENT_DIR)
 
 SUCCESS_STEPS_UPDATE = 100  # parameter to update success rate every SUCCESS_STEPS_UPDATE during the training
-largeValObservation = 100
+largeValObservation = 1.0
 RENDER_HEIGHT = 720
 RENDER_WIDTH = 960
 PATH_POINT_RADIUS = 0.01
@@ -146,6 +146,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.r_function = None
         self.dis_action = 0
 
+        gym.logger.set_level(40)
+
         if self.if_rendering:
             cid = self.pb.connect(self.pb.SHARED_MEMORY)
             if cid < 0:
@@ -168,7 +170,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
 
         self.observation_dim = len(self.__get_observation())
         observation_high = np.array([largeValObservation] * self.observation_dim)
-        action_boundary = 1
+
+        action_boundary = 1.0
         if self.is_discrete:
             self.action_space = spaces.MultiDiscrete(np.ones(self.action_dim) * 3)
         else:
@@ -319,7 +322,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                   ' success_rate_total :', success_rate_total,
                   f' StepUpdate : {self.update_step_counter}/{SUCCESS_STEPS_UPDATE}',
                   f' SuccessUpdate : {self.success_update_counter}/{SUCCESS_STEPS_UPDATE}',
-                  ' success_rate_updateUpdate :', success_rate_update, self.ws_boundary)
+                  ' success_rate_updateUpdate :', success_rate_update,
+                  self.ws_boundary)
 
         return self.observation
 
@@ -409,6 +413,13 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             rm_indices = [3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 21, 22, 23, 31, 32, 33, 34, 35, 36, 37, 44, 45, 46, 47, 48, 49]
         self.observation = np.delete(observation, rm_indices)
         # self.observation = observation
+        print("obs1 ", self.observation)
+        nobs = np.linalg.norm(self.observation)
+        if nobs == 0:
+            nobs += 1e-16
+        self.observation = self.observation / nobs
+
+        print("obs2 ", self.observation)
         return self.observation
 
     def step(self, input_action):
@@ -429,15 +440,10 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         scaled_action = np.zeros(self.action_dim)
         if self.action_dim == 10:
             # tau = self.dis_ee / self.dis_ee_init
-            tau = self.dis_base / self.dis_base_init
+            tau = self.dis_base / self.dis_base_init if self.dis_base_init else 0
             #tau = np.cbrt(tau)#tau  # **2#
-
-            if self.dis_base<0.3:
-                accjoint = 1
-                accbase = 1.0
-            else:
-                accjoint = 1.0
-                accbase = 1
+            accjoint = 0.1
+            accbase = 1
             #accbase = tau
             #accjoint = 1-tau
             scaled_action[0] = input_action[0] * accjoint
@@ -543,10 +549,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.dis_action = np.linalg.norm(self.actions[0:7]-action_scaled[0:7], ord=np.inf)
         #print("action old : ", self.actions, action_scaled, self.actions[0:7]-action_scaled[0:7], self.dis_action)
         self.actions = action_scaled
-        nobs = np.linalg.norm(self.observation)
-        if nobs == 0:
-            nobs += 1e-16
-        #self.observation = self.observation / nobs
         reward = self.__reward()
         return self.observation, reward, done, {}
 
@@ -664,7 +666,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.dis_vor = self.dis_ee
 
         #tau = self.dis_ee/self.dis_ee_init
-        tau = self.dis_base / self.dis_base_init
+        tau = self.dis_base / self.dis_base_init if self.dis_base_init else 0
         #tau = np.cbrt(tau)#tau#**2#
         #ree = self.r_function.reward_divid(0)
         ree = -1*self.dis_ee**2 #np.exp(-100*self.dis_ee**2)-1#10
@@ -744,8 +746,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         #text_ee = 'ee position : (' + str(round(self.ee_position[0], 4)) + ', ' + str(round(self.ee_position[1], 4)) + ', ' + str(round(self.ee_position[2], 4)) + ')'
         #self.pb.addUserDebugText(text_goal, [-3, -1, 3.4], textSize=1.5)
         #self.pb.addUserDebugText(text_ee, [-3, -1, 3], textSize=1.5, lifeTime=0.5)
-        self.pb.addUserDebugLine(self.former_ee_pos, self.ee_position, [0, 0, 1], 3)
-        self.pb.addUserDebugLine(self.former_base_pos, self.base_position, [0, 1, 0], 3)
+        self.pb.addUserDebugLine(self.former_ee_pos, self.ee_position, [1, 0, 1], 3)
+        self.pb.addUserDebugLine(self.former_base_pos, self.base_position, [0, 0, 0], 3)
         if self.if_goal_moving_type is not 'static':
             self.pb.addUserDebugLine(self.former_goal_pos, self.goal.goal_position, [1, 0, 0], 3)
         view_matrix = self.pb.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos, distance=self.cam_dist, yaw=self.cam_yaw, pitch=self.cam_pitch, roll=0, upAxisIndex=2)
@@ -772,8 +774,19 @@ if __name__ == "__main__":
     from stable_baselines.common.env_checker import check_env
     # 如果你安装了pytorch
     # from stable_baselines3.common.env_checker import check_env
-    environment = NeobotixSchunkGymEnvReaching(urdf_root=PARENT_DIR, renders=1, is_discrete=0, action_repeat=1, max_steps=300, action_dim=10, ws_boundary=1,
-                                               random_initial=0, if_prioritized=0, if_obstacle=1, if_obstacle_moving=0, if_goal_moving_type='static', if_scenario=0)
+    environment = NeobotixSchunkGymEnvReaching(urdf_root=PARENT_DIR,
+                                               renders=True,
+                                               is_discrete=False,
+                                               action_repeat=1,
+                                               max_steps=200,
+                                               action_dim=10,
+                                               ws_boundary=1,
+                                               random_initial=False,
+                                               if_prioritized=False,
+                                               if_obstacle=False,
+                                               if_obstacle_moving=False,
+                                               if_goal_moving_type='static',
+                                               if_scenario=False)
     check_env(environment)
     # environment = NeobotixGymEnv(renders=1, isDiscrete=False, maxSteps=2e3, actionDim=2, colliObj=0, wsBoundary=1, randomInitial=0)environment = NeobotixSchunkGymEnv(renders=1, isDiscrete=False, maxSteps=3e3, actionDim=10, colliObj=0, wsBoundary=1, randomInitial=1)
     # environment._p.startStateLogging(environment._p.STATE_LOGGING_VIDEO_MP4, "TEST_GUI.mp4")
@@ -802,7 +815,7 @@ if __name__ == "__main__":
             action = []
             for actionId in actionIds:
                 action.append(environment.pb.readUserDebugParameter(actionId))
-            # action = environment.action_space.sample()
+            action = environment.action_space.sample()
             state, reward, done, info = environment.step(action)
             print('len', i, len(state), state, info, reward)
             # state, reward, done, info = environment.step(environment._sample_action())
@@ -812,6 +825,7 @@ if __name__ == "__main__":
             environment.render()
             disc_total_rew += reward * 0.998 ** t
             t += 1
+            #massCenterLineId = pb.addUserDebugLine([environment.ee_position[0], environment.ee_position[1], 0], environment.ee_position[0:3], [1, 0, 0])
             if done:
                 break
         print(disc_total_rew, t)

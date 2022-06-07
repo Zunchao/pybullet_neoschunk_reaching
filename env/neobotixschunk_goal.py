@@ -63,7 +63,7 @@ class NeobotixSchunkGoal:
                     self.np_random.uniform(GOAL_HEIGHT_LOW, GOAL_HEIGHT_HIGH),
                 ]
             )
-            # self.goal_position = np.array([0, 0, 1])
+            self.goal_position = np.array([0, 0, 0.5])
         """
         if self.if_goal_moving_type == 'line':
             self.goal_position = np.array([0, 0, 1])  # initial position for line tracking
