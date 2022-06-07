@@ -36,7 +36,7 @@ PARENT_DIR = os.path.dirname(os.path.dirname(CURRENT_DIR))
 os.sys.path.insert(0, PARENT_DIR)
 
 SUCCESS_STEPS_UPDATE = 100  # parameter to update success rate every SUCCESS_STEPS_UPDATE during the training
-largeValObservation = 1.0
+largeValObservation = 100.0
 RENDER_HEIGHT = 720
 RENDER_WIDTH = 960
 PATH_POINT_RADIUS = 0.01
@@ -101,7 +101,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.dis_base = 0
         self.ee_position = []
         self.base_position = []
-        self.collision_relative_position = []
+        self.collision_relative_position = np.zeros(3)
         self.flag_collide = 0
         self.collision_probability = 0
         self.actions = np.zeros(7)
@@ -167,8 +167,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             self.if_obstacle = True
 
         self.reset()
-
         self.observation_dim = len(self.observation)
+        # largeValObservation >= max(observation[])
         observation_high = np.array([largeValObservation] * self.observation_dim)
 
         action_boundary = 1.0
@@ -277,6 +277,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                     self.obstacle.resetObstacle()
             else:
                 break
+
         pb.stepSimulation()
         self.__get_observation()
         #self.goal.goal_position = self.ee_position
@@ -355,6 +356,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         :return:
         """
         observation = self.robot.getObservation()
+        # add dims for goal relative obs and base pos 3, relative collisions 3
+        observation.extend(np.zeros(6))  # 56,57,58,59,60,61
         self.goal.getGoalState()
         self.ee_position = observation[0:3]
         self.base_position = observation[16:19]
@@ -372,9 +375,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         relative_vell_goal_base = np.subtract(base_vell, self.goal.goal_linear_velocity)
         relative_vela_goal_base = np.subtract(base_vela, self.goal.goal_angular_velocity)
 
-        # add dims for goal relative obs and base pos 3, relative collisions 3
-        observation.extend(np.zeros(6))  # 56,57,58,59,60,61
-
         observation_mod = observation
         observation_mod[0:3] = relative_pos_ee
         observation_mod[16:19] = relative_pos_base
@@ -383,6 +383,15 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         observation_mod[13:16] = relative_vela_goal_ee
         observation_mod[26:29] = relative_vell_goal_base
         observation_mod[29:32] = relative_vela_goal_base
+        observation_mod[7] /= np.pi
+        observation_mod[8] /= np.pi
+        observation_mod[9] /= np.pi
+        observation_mod[23] /= np.pi
+        observation_mod[24] /= np.pi
+        observation_mod[25] /= np.pi
+        observation_mod[53] /= np.pi
+        observation_mod[54] /= np.pi
+        observation_mod[55] /= np.pi
 
         if self.if_obstacle:
             self.obstacle.getObstacleState()
@@ -398,7 +407,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         nobs = np.linalg.norm(simple_observation)
         if nobs == 0:
             nobs += 1e-16
-        self.observation = simple_observation / nobs
+        self.observation = simple_observation / 1
         return self.observation
 
     def step(self, input_action):
@@ -556,7 +565,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         """
         closest_points = []
         closest_distances = []
-
+        self.collision_relative_position = np.zeros(3)
         if self.if_obstacle:
             closest_points = pb.getClosestPoints(self.robot.neobotix_schunk_uid, self.obstacle.obstacle_uid, COLLISION_THRESHOLD)
         self.flag_collide = len(closest_points)
@@ -572,7 +581,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         return False
 
     def __termination(self):
-
+        self.__get_observation()
         if self.__check_collision_obstacle():
             # force, d_force = self.calculateField.compute_sum_force()
             self.observation[-3:] = self.collision_relative_position#[0:2]
@@ -586,8 +595,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                 self.terminated = 2
                 print('ACHTUNG : collision with obs!')
                 return True
-
-        self.__get_observation()
 
         if self.if_obstacle:
             self.r_function = reachingRewards.ReachingReward(with_priority=self.if_prioritized, goal=self.goal.goal_position, armpos=self.ee_position, basepos=self.base_position, opos=self.obstacle.obstacle_position)
