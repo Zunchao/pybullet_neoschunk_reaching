@@ -20,8 +20,8 @@ from wasabi import Printer
 
 import utils.import_envs  # noqa: F401 pylint: disable=unused-import
 from utils import ALGOS, create_test_env, get_saved_hyperparams
-from utils.exp_manager import ExperimentManager
-from utils.utils import StoreDict, get_model_path
+from exp_manager import ExperimentManager
+from utils import StoreDict, get_model_path
 
 msg = Printer()
 
