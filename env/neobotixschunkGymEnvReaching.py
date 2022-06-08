@@ -36,7 +36,7 @@ PARENT_DIR = os.path.dirname(os.path.dirname(CURRENT_DIR))
 os.sys.path.insert(0, PARENT_DIR)
 
 SUCCESS_STEPS_UPDATE = 100  # parameter to update success rate every SUCCESS_STEPS_UPDATE during the training
-largeValObservation = 100.0
+largeValObservation = 1.0
 RENDER_HEIGHT = 720
 RENDER_WIDTH = 960
 PATH_POINT_RADIUS = 0.01
@@ -89,7 +89,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.r_termination = 0
         self.r_penalty_collision = 0
         self.terminated = 0
-        self.dis_vor = 100
+        self.dis_ee_vor = 100
+        self.dis_base_vor = 100
         self.success_update_counter = 0
         self.episode_counter = 0
         self.update_step_counter = 0
@@ -292,7 +293,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         self.dis_base = np.linalg.norm(np.subtract(self.base_position[0:2], self.goal.goal_position[0:2]))
 
         self.dis_ee = self.dis_ee_init
-        self.dis_vor = self.dis_ee_init
+        self.dis_ee_vor = self.dis_ee_init
+        self.dis_base_vor = self.dis_base_init
         #self.heu_reward_function = heuristicReward.HeuristicReward(self.ee_position[0:2], self.goal_position[0:2], self.obstacle_position[0:2])
         data_writer_file = csv.writer(open(self.data_path_success_rate, "a"))
 
@@ -383,15 +385,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         observation_mod[13:16] = relative_vela_goal_ee
         observation_mod[26:29] = relative_vell_goal_base
         observation_mod[29:32] = relative_vela_goal_base
-        observation_mod[7] /= np.pi
-        observation_mod[8] /= np.pi
-        observation_mod[9] /= np.pi
-        observation_mod[23] /= np.pi
-        observation_mod[24] /= np.pi
-        observation_mod[25] /= np.pi
-        observation_mod[53] /= np.pi
-        observation_mod[54] /= np.pi
-        observation_mod[55] /= np.pi
 
         if self.if_obstacle:
             self.obstacle.getObstacleState()
@@ -407,7 +400,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         nobs = np.linalg.norm(simple_observation)
         if nobs == 0:
             nobs += 1e-16
-        self.observation = simple_observation / 1
+        self.observation = simple_observation / nobs
         return self.observation
 
     def step(self, input_action):
@@ -595,7 +588,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                 self.terminated = 2
                 print('ACHTUNG : collision with obs!')
                 return True
-
         if self.if_obstacle:
             self.r_function = reachingRewards.ReachingReward(with_priority=self.if_prioritized, goal=self.goal.goal_position, armpos=self.ee_position, basepos=self.base_position, opos=self.obstacle.obstacle_position)
         '''
@@ -610,14 +602,11 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             self.terminated = 5
             print('ACHTUNG : collision with walls!')
             return True
-
-
         if self.robot.check_collision_self():
             self.terminated = 3
             self.r_termination = -10000#self.step_counter_per_episode
             print('ACHTUNG : self-collision!')
             return True
-
         if self.dis_ee < 0.05:#0.2/self.sound_reaching_number:#self.dis_base < 0.1
             self.r_termination = 10*self.sound_reaching_number
             self.sound_reaching_counter_per_episode += 1
@@ -632,7 +621,6 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                 print('Terminate reaching at step ', self.step_counter_per_episode, ' in episode ', self.episode_counter)
                 print('observation : ', self.observation, ' goal : ', self.goal.goal_position, ' distance : ', self.dis_ee)
                 return True
-
         if self.step_counter_per_episode >= self.max_steps-1:
             print('ACHTUNG : greater than maxstep!')
             self.terminated = 4
@@ -645,48 +633,40 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         """
         if self.terminated:
             return True
-
         return False
 
-    def __reward(self):
-        reward = 0
-        #rd = self.heu_reward_function.fun_gaussian(self.observation[0:2])
-        #r = self.r_function.reward_field3d()
-        #dline = self.__calculate_point2line(self.ee_position, self.init_ee, self.init_goal)
-        delta_dis = self.dis_ee - self.dis_vor
-        self.dis_vor = self.dis_ee
+    def __reward_delta_p_dis(self):
+        """
+        reward : distance between position t and position t+1
+        """
+        delta_dis_p_ee = np.linalg.norm(self.former_ee_pos, self.ee_position)
+        delta_dis_p_base = np.linalg.norm(self.former_base_pos, self.base_position)
+        delta_dis_ee = self.dis_ee - self.dis_ee_vor
+        self.dis_ee_vor = self.dis_ee
+        delta_dis_base = self.dis_base - self.dis_base_vor
+        self.dis_base_vor = self.dis_base
+        rdpde = - delta_dis_ee - delta_dis_p_ee
+        rdpd = rdpde - delta_dis_base - delta_dis_p_base
+        return rdpde, rdpd
 
-        #tau = self.dis_ee/self.dis_ee_init
+    def __reward_delta_dis(self):
+        """
+        reward : distance between former distance and current distance
+        """
+        delta_dis_ee = self.dis_ee - self.dis_ee_vor
+        self.dis_ee_vor = self.dis_ee
+        delta_dis_base = self.dis_base - self.dis_base_vor
+        self.dis_base_vor = self.dis_base
+        return - delta_dis_ee - delta_dis_base
+
+    def __reward_prioritized(self):
+        """
+        reward : prioritized
+        """
         tau = self.dis_base / self.dis_base_init if self.dis_base_init else 0
         #tau = np.cbrt(tau)#tau#**2#
-        #ree = self.r_function.reward_divid(0)
-        ree = -1*self.dis_ee**2 #np.exp(-100*self.dis_ee**2)-1#10
-        #ree = 1/self.dis_ee
-        rbase = -self.dis_base**2
-        #rbase = 1/self.dis_base
-        '''
-        rline = ree-dline**2
-
-        rbase_scale = 10*(round(self.dis_base*10)+1)
-        
-        if self.dis_base_init-self.dis_base>0.2*self.flag_r1 and self.dis_base_init>0.2*self.flag_r1:
-            r_stage = 100*self.flag_r1
-            self.flag_r1 = self.flag_r1+1
-        elif self.dis_base-self.dis_base_init>0.2*self.flag_r2:
-            r_stage = -200*self.flag_r2
-            self.flag_r2 = self.flag_r2+1
-        else:
-            r_stage = 0
-        '''
-        if self.dis_ee_init-self.dis_ee>0.2*self.flag_r1 and self.dis_ee_init>0.2*self.flag_r1:
-            r_stage = 10*self.flag_r1
-            self.flag_r1 = self.flag_r1+1
-        elif self.dis_ee-self.dis_ee_init>0.2*self.flag_r2:
-            r_stage = -20*self.flag_r2
-            self.flag_r2 = self.flag_r2+1
-        else:
-            r_stage = 0
-        r_stage = 0
+        ree = -self.dis_ee ** 2
+        rbase = -self.dis_base ** 2
         if self.dis_base < 0.3:
             rp = 20*ree
         else:
@@ -696,20 +676,67 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             else:
                 rp = rbase
                 rp = rp
+        return rp
+
+    def __reward_normal(self):
+        """
+        reward : normal
+        """
+        ree = -self.dis_ee ** 2
+        rbase = -self.dis_base ** 2
+        return ree + rbase
+
+    def __reward_stage_scale(self):
+        """
+        reward : stage scale value
+        """
+        rbase_scale = 10 * (round(self.dis_base * 10) + 1)
+        if self.dis_ee_init-self.dis_ee>0.2*self.flag_r1 and self.dis_ee_init>0.2*self.flag_r1:
+            r_stage = 10*self.flag_r1
+            self.flag_r1 = self.flag_r1+1
+        elif self.dis_ee-self.dis_ee_init>0.2*self.flag_r2:
+            r_stage = -20*self.flag_r2
+            self.flag_r2 = self.flag_r2+1
+        else:
+            r_stage = 0
+        return r_stage
+
+    def __reward_step(self):
+        """
+        reward : from step
+        """
+        if (self.step_counter_per_episode + 1) % 50:
+            r_step = - 2 * (self.step_counter_per_episode / self.max_steps) ** 2
+        else:
+            r_step = - 2 * (self.step_counter_per_episode / self.max_steps) ** 2
+        return r_step
+
+    def __reward(self):
+        reward = 0
+        rdpde, rdpd = self.__reward_delta_p_dis()
+        #rd = self.heu_reward_function.fun_gaussian(self.observation[0:2])
+        #r = self.r_function.reward_field3d()
+        #dline = self.__calculate_point2line(self.ee_position, self.init_ee, self.init_goal)
+        delta_dis_ee = self.dis_ee - self.dis_ee_vor
+        self.dis_ee_vor = self.dis_ee
+        delta_dis_base = self.dis_base - self.dis_base_vor
+        self.dis_base_vor = self.dis_base
+        #ree = self.r_function.reward_divid(0)
+        ree = -self.dis_ee**2 #np.exp(-100*self.dis_ee**2)
+        rbase = -self.dis_base**2
+        '''
+        rline = ree-dline**2
+        '''
+        r_stage = 0
         k1 = 10
         #k1 = rbase_scale
-
-        if (self.step_counter_per_episode+1)%50:
-            r_step = - 2*(self.step_counter_per_episode/self.max_steps)**2
-        else:
-            r_step = - 2*(self.step_counter_per_episode/self.max_steps)**2
         r_step = 0
 
         if self.reward_type == 'rdense':
             # noise = AdaptiveParamNoiseSpec(mu=0, sigma=0.1) - self.input_u**2
-            reward = k1 * ree/1 + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action
+            reward = k1 * rdpde + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action
             if self.if_prioritized:
-                reward = k1 * rp/1 + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action#- self.input_u**2/50
+                reward = k1 * self.__reward_prioritized() + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action#- self.input_u**2/50
             if self.if_goal_moving_type == 'line':
                 # dline_of_line^2 = dee^2 - dline^2, dline^2 = dz^2 + dy^2
                 dis_line2 = self.dis_ee**2-((self.ee_position[2]-self.goal.goal_position[2])**2+(self.ee_position[1]-self.goal.goal_position[1])**2)
@@ -719,7 +746,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                 reward = k1 * ree + self.r_termination + 50 * self.r_penalty_collision - 40 * self.input_u ** 2 + r_step
 
         elif self.reward_type == 'rsparse':
-            if delta_dis > 0:
+            if delta_dis_ee > 0:
                 reward = 0
             else:
                 reward = 1
@@ -772,7 +799,7 @@ if __name__ == "__main__":
                                                max_steps=50,
                                                action_dim=10,
                                                ws_boundary=1,
-                                               random_initial=False,
+                                               random_initial=True,
                                                if_prioritized=False,
                                                if_obstacle=True,
                                                if_obstacle_moving=True,
