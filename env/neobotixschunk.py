@@ -486,12 +486,17 @@ class NeobotixSchunk:
         gripper_r_state = self.pb.getLinkState(bodyUniqueId=self.neobotix_schunk_uid, linkIndex=self.collision_check_index[2])
         gripper_r_pos = gripper_r_state
         """
+
+        basev = self.pb.getBaseVelocity(self.neobotix_schunk_uid)
+        self.base_velocity[0] = basev[0][0]
+        self.base_velocity[1] = basev[0][1]
+        self.base_velocity[2] = basev[1][2]
         self.base_velocity += action[7:10]
         self.base_velocity = self.check_base_velocity(self.base_velocity)
         base_pos, base_orn = self.pb.getBasePositionAndOrientation(self.neobotix_schunk_uid)
         b_rotation = self.pb.getMatrixFromQuaternion(base_orn)
         bm_rotation = np.array(b_rotation).reshape(3, 3)
-        self.base_velocity = bm_rotation.dot(self.base_velocity)
+        #self.base_velocity = bm_rotation.dot(self.base_velocity)
         vel = np.array([self.base_velocity[0], self.base_velocity[1], 0])
         ang = np.array([0, 0, self.base_velocity[2]])
 
@@ -502,26 +507,35 @@ class NeobotixSchunk:
         mb_ang_w = self.pb.getEulerFromQuaternion(mb_link_state[5])[2]
         self.base_velocity = self.rotation_matrix(mb_ang_w).dot(self.base_velocity)
         """
+        jointstates = self.pb.getJointStates(self.neobotix_schunk_uid, jointIndices=self.active_arm_index)
+        jpos = [x[0] for x in jointstates]
+        jvel = [x[1] for x in jointstates]
+        self.joint_position = jpos
+        self.joint_velocity = jvel
         self.joint_position += action[0:7]
+        #self.joint_velocity += action[0:7]
+        #self.joint_velocity = self.check_joint_vels(self.joint_velocity)
         self.joint_position, self.joint_velocity, flag = self.check_joint_states(self.joint_position, self.joint_velocity)
-        # self.joint_velocity += action[0:7]
-        # jointstates = self.pb.getJointStates(self.neobotix_schunk_uid, jointIndices=self.active_arm_index)
-        # jpos = [x[0] for x in jointstates]
-        # self.joint_velocity = self.check_joint_vels(self.joint_velocity)
-        # self.joint_position, self.joint_velocity, flag = self.check_joint_states(jpos, self.joint_velocity)
 
         self.pb.resetBaseVelocity(
             objectUniqueId=self.neobotix_schunk_uid,
             linearVelocity=vel,
             angularVelocity=ang,
         )
+        for j in range(len(self.active_arm_index)):
+            self.pb.resetJointState(
+                self.neobotix_schunk_uid,
+                jointIndex=self.active_arm_index[j],
+                targetValue=self.joint_position[j],
+                targetVelocity=0,
+            )
         """
         self.pb.setJointMotorControlArray(bodyIndex=self.neobotix_schunk_uid,
-                                    jointIndices=self.active_arm_index,
-                                    controlMode=self.pb.VELOCITY_CONTROL,
-                                    targetVelocities=self.joint_velocity,
-                                    forces=len(self.active_arm_index)*[self.max_force])
-        """
+                                          jointIndices=self.active_arm_index,
+                                          controlMode=self.pb.VELOCITY_CONTROL,
+                                          targetVelocities=self.joint_velocity,
+                                          forces=len(self.active_arm_index)*[self.max_force])
+        
         self.pb.setJointMotorControlArray(
             bodyIndex=self.neobotix_schunk_uid,
             jointIndices=self.active_arm_index,
@@ -529,6 +543,7 @@ class NeobotixSchunk:
             targetPositions=self.joint_position,
             forces=len(self.active_arm_index) * [self.max_force],
         )  # , maxVelocity=0.43633 , positionGain=1e-5, velocityGain=1e-5)
+    """
 
     def applyAction_ee(self, action):
         """

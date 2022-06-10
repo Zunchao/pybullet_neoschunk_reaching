@@ -61,7 +61,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                  if_prioritized=False,
                  action_dim=9,
                  random_initial=True,
-                 ws_boundary=1,
+                 ws_boundary=1.0,
                  if_obstacle=False,
                  if_obstacle_moving=False,
                  if_goal_moving_type='static',
@@ -385,6 +385,15 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         observation_mod[13:16] = relative_vela_goal_ee
         observation_mod[26:29] = relative_vell_goal_base
         observation_mod[29:32] = relative_vela_goal_base
+        # observation_mod[7] /= np.pi
+        # observation_mod[8] /= np.pi
+        # observation_mod[9] /= np.pi
+        # observation_mod[23] /= np.pi
+        # observation_mod[24] /= np.pi
+        # observation_mod[25] /= np.pi
+        # observation_mod[53] /= np.pi
+        # observation_mod[54] /= np.pi
+        # observation_mod[55] /= np.pi
 
         if self.if_obstacle:
             self.obstacle.getObstacleState()
@@ -424,7 +433,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             tau = self.dis_base / self.dis_base_init if self.dis_base_init else 0
             #tau = np.cbrt(tau)#tau  # **2#
             accjoint = 0.1
-            accbase = 1
+            accbase = 0.2
             #accbase = tau
             #accjoint = 1-tau
             scaled_action[0] = input_action[0] * accjoint
@@ -584,7 +593,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
                 self.r_penalty_collision = -1/self.dis_collision**2#np.log(self.dis_collision)#-np.log(self.dis_collision)/np.log(COLLISION_THRESHOLD)
             else:
                 self.r_penalty_collision = -1/self.dis_collision**2#np.log(0.1)#-np.log(0.1)/np.log(COLLISION_THRESHOLD)
-                self.r_termination = -10000
+                self.r_termination = -1000
                 self.terminated = 2
                 print('ACHTUNG : collision with obs!')
                 return True
@@ -598,16 +607,16 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             return True
         '''
         if self.__check_collision_wall():
-            self.r_termination = -100
+            self.r_termination = -1000
             self.terminated = 5
             print('ACHTUNG : collision with walls!')
             return True
         if self.robot.check_collision_self():
             self.terminated = 3
-            self.r_termination = -10000#self.step_counter_per_episode
+            self.r_termination = -1000
             print('ACHTUNG : self-collision!')
             return True
-        if self.dis_ee < 0.05:#0.2/self.sound_reaching_number:#self.dis_base < 0.1
+        if self.dis_ee < 0.05:#0.2/self.sound_reaching_number:#self.dis_base < 0.1:#
             self.r_termination = 10*self.sound_reaching_number
             self.sound_reaching_counter_per_episode += 1
             self.sound_reaching_number += 1
@@ -615,7 +624,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             steps_data_writer_file.writerow([self.episode_counter, self.step_counter_per_episode])
             if self.sound_reaching_number == 2:
                 self.terminated = 1
-                self.r_termination = 1e5
+                self.r_termination = 1000
                 self.success_update_counter += 1
                 self.total_success_counter += 1
                 print('Terminate reaching at step ', self.step_counter_per_episode, ' in episode ', self.episode_counter)
@@ -639,8 +648,8 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         """
         reward : distance between position t and position t+1
         """
-        delta_dis_p_ee = np.linalg.norm(self.former_ee_pos, self.ee_position)
-        delta_dis_p_base = np.linalg.norm(self.former_base_pos, self.base_position)
+        delta_dis_p_ee = np.linalg.norm(np.subtract(self.former_ee_pos, self.ee_position))
+        delta_dis_p_base = np.linalg.norm(np.subtract(self.former_base_pos, self.base_position))
         delta_dis_ee = self.dis_ee - self.dis_ee_vor
         self.dis_ee_vor = self.dis_ee
         delta_dis_base = self.dis_base - self.dis_base_vor
@@ -731,10 +740,10 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         k1 = 10
         #k1 = rbase_scale
         r_step = 0
-
+        #print('q ', rdpde, rdpd, ree)
         if self.reward_type == 'rdense':
             # noise = AdaptiveParamNoiseSpec(mu=0, sigma=0.1) - self.input_u**2
-            reward = k1 * rdpde + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action
+            reward = k1 * ree + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action
             if self.if_prioritized:
                 reward = k1 * self.__reward_prioritized() + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action#- self.input_u**2/50
             if self.if_goal_moving_type == 'line':
@@ -796,9 +805,9 @@ if __name__ == "__main__":
                                                renders=True,
                                                is_discrete=False,
                                                action_repeat=1,
-                                               max_steps=50,
+                                               max_steps=200,
                                                action_dim=10,
-                                               ws_boundary=1,
+                                               ws_boundary=0.5,
                                                random_initial=True,
                                                if_prioritized=False,
                                                if_obstacle=True,
@@ -823,17 +832,18 @@ if __name__ == "__main__":
     actionIds.append(pb.addUserDebugParameter("baseangularvelocity", -dv, dv, dvalue))
 
     done = 0
-    n_steps = 100000
+    n_steps = 10000
 
     while not False:
         environment.reset()
+        environment.render(mode="rgb_array")
         disc_total_rew = 0
         t = 0
         for i in range(n_steps):
             action = []
             for actionId in actionIds:
                 action.append(pb.readUserDebugParameter(actionId))
-            #action = environment.action_space.sample()
+            action = environment.action_space.sample()
             state, reward, done, info = environment.step(action)
             # print('len', i, len(state), state, info, reward)
             # state, reward, done, info = environment.step(environment._sample_action())
@@ -843,6 +853,8 @@ if __name__ == "__main__":
             environment.render()
             disc_total_rew += reward * 0.998 ** t
             t += 1
+            pb.addUserDebugLine(environment.former_ee_pos, environment.ee_position, [1, 0, 1], 3)
+            pb.addUserDebugLine(environment.former_base_pos, environment.base_position, [0, 0, 0], 3)
             #massCenterLineId = pb.addUserDebugLine([environment.ee_position[0], environment.ee_position[1], 0], environment.ee_position[0:3], [1, 0, 0])
             if done:
                 break
