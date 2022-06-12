@@ -613,7 +613,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             return True
         if self.robot.check_collision_self():
             self.terminated = 3
-            self.r_termination = -1000
+            self.r_termination = -10000
             print('ACHTUNG : self-collision!')
             return True
         if self.dis_ee < 0.05:#0.2/self.sound_reaching_number:#self.dis_base < 0.1:#
@@ -624,7 +624,7 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
             steps_data_writer_file.writerow([self.episode_counter, self.step_counter_per_episode])
             if self.sound_reaching_number == 2:
                 self.terminated = 1
-                self.r_termination = 1000
+                self.r_termination = 10000
                 self.success_update_counter += 1
                 self.total_success_counter += 1
                 print('Terminate reaching at step ', self.step_counter_per_episode, ' in episode ', self.episode_counter)
@@ -740,10 +740,10 @@ class NeobotixSchunkGymEnvReaching(gym.Env):
         k1 = 10
         #k1 = rbase_scale
         r_step = 0
-        #print('q ', rdpde, rdpd, ree)
+        rp=self.__reward_prioritized()
         if self.reward_type == 'rdense':
             # noise = AdaptiveParamNoiseSpec(mu=0, sigma=0.1) - self.input_u**2
-            reward = k1 * ree + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action
+            reward = rp + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action
             if self.if_prioritized:
                 reward = k1 * self.__reward_prioritized() + self.r_termination + self.r_penalty_collision*10 + r_step + r_stage - self.dis_action#- self.input_u**2/50
             if self.if_goal_moving_type == 'line':
